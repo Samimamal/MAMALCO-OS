@@ -278,6 +278,6 @@ def test_city_points_import_and_issues(tmp_path):
 
 def test_pilot_page(app):
     page = TestClient(app).get("/pilot").text
-    assert "۱۴۰۴/۱۱/۱۸" in page and "سال ۵" in page
+    assert "۱۴۰۴/۱۱/۱۸" in page and "سال ۵" in page and "سالی ۱۰" in page
     # Internal contract details stay off the public page.
     assert "۰۲/۱۶۰۱۸" not in page and "۳٫۵ میلیون" not in page and "۳۵٬۰۰۰٬۰۰۰" not in page

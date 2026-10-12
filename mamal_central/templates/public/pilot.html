@@ -31,17 +31,23 @@
     <tbody>
       <tr><td>دکه‌های شهری — کل طرح</td><td>دکه‌های متحدالشکل در سطح شهر</td><td class="num">{{ kiosks_vision|fa }}</td><td><span class="tag">چشم‌انداز</span></td></tr>
       <tr><td>فاز اول دکه‌ها</td><td>۳۰ محل، هر کدام حدود ۱۲ متر مربع، کانکس پیش‌ساخته با طراحی تأییدشده‌ی شهرداری</td><td class="num">{{ counts['form']|fa }}</td><td><span class="tag good">قرارداد امضا شده؛ پل بازار نصب شده</span></td></tr>
-      <tr><td>دهکده مامال</td><td>سازه‌های گنبدی ابرخشتی، هر کدام حداکثر حدود ۳۶ متر مربع، در محدوده‌ی حدود ۲٬۰۰۰ متر مربع</td><td class="num">{{ counts['village']|fa }}</td><td><span class="tag warn">مجوز ساخت و الحاقیه در جریان</span></td></tr>
-      <tr><td>اقامتگاه</td><td>زمین ۱۳٬۵۰۰ متر مربعی در قلاتوک (برده زرد)، پیوست طرح دهکده</td><td class="num">{{ counts['lodge']|fa }}</td><td><span class="tag warn">در مرحله‌ی پیگیری</span></td></tr>
+      <tr><td>دهکده مامال</td><td>سازه‌های گنبدی ابرخشتی، هر کدام حداکثر حدود ۳۶ متر مربع، در محدوده‌ی حدود ۲٬۰۰۰ متر مربع</td><td class="num">{{ counts['village']|fa }}<br><span class="muted">سالی {{ per_year['village']|fa }}</span></td><td><span class="tag warn">مجوز ساخت و الحاقیه در جریان</span></td></tr>
+      <tr><td>اقامتگاه</td><td>واحدهای اقامتی روی زمین ۱۳٬۵۰۰ متر مربعی قلاتوک (برده زرد)، پیوست طرح دهکده</td><td class="num">سالی {{ per_year['lodge']|fa }}</td><td><span class="tag warn">در مرحله‌ی پیگیری</span></td></tr>
     </tbody>
   </table>
 </section>
 
 <section class="card">
-  <h2>برنامه‌ی زمانی فاز اول</h2>
+  <h2>برنامه‌ی زمانی</h2>
+  <h3>دکه‌های شهری (فاز اول)</h3>
   <table class="facts-table">
     <thead><tr><th>دوره</th><th>اجرا</th><th>تجمعی</th></tr></thead>
     <tbody>{% for year, total in rollout %}<tr><td>سال {{ year|fa }}</td><td class="num">{{ (total if loop.first else total - loop.previtem[1])|fa }} کانکس</td><td class="num">{{ total|fa }}</td></tr>{% endfor %}</tbody>
+  </table>
+  <h3>دهکده و اقامتگاه</h3>
+  <table class="facts-table">
+    <thead><tr><th>سال</th><th>دهکده (تجمعی)</th><th>اقامتگاه (تجمعی)</th></tr></thead>
+    <tbody>{% for year, total in village_rollout %}<tr><td>سال {{ year|fa }}</td><td class="num">{{ total|fa }}</td><td class="num">{{ (year * per_year['lodge'])|fa }}</td></tr>{% endfor %}</tbody>
   </table>
   <p class="muted">شروع تعهدات زمانی هر فاز از تاریخ صدور مجوزهای کامل و امکان اجرای زیرساخت‌هاست. مراحل هر کانکس: اخذ مجوز، آماده‌سازی، تأسیس. پس از اجرای کامل فاز اول، مکان‌های فاز دوم واگذار می‌شود. مدت قرارداد ۱۰ سال، با امکان تمدید برای دو دوره‌ی ۱۰ ساله‌ی دیگر.</p>
 </section>
@@ -61,7 +67,7 @@
 
 <section class="card">
   <h2>دهکده مامال</h2>
-  <p>۳۰ سازه‌ی گنبدی ابرخشتی برای کسب‌وکارهای محلی، غذا، صنایع‌دستی و تجربه‌ی گردشگری، در غرب شهر و مشرف به آن: قصابی، لبنیاتی، چایخانه، کافه، نان محلی، رستوران، ادویه، ترشی‌جات و خشکبار.</p>
+  <p>۳۰ سازه‌ی گنبدی ابرخشتی، سالی {{ per_year['village']|fa }} سازه، برای کسب‌وکارهای محلی، غذا، صنایع‌دستی و تجربه‌ی گردشگری، در غرب شهر و مشرف به آن: قصابی، لبنیاتی، چایخانه، کافه، نان محلی، رستوران، ادویه، ترشی‌جات و خشکبار.</p>
   <figure class="wide flat"><img src="/static/img/village-land-photo.jpg" alt="عکس واقعی زمین دهکده و چشم‌انداز شهر اشنویه" loading="lazy"><figcaption>عکس واقعی — زمین دهکده و چشم‌انداز شهر</figcaption></figure>
   <div class="trio">
     <figure><img src="/static/img/dome-exterior.jpg" alt="نمای بیرونی سازه‌های گنبدی" loading="lazy"><figcaption>طرح — نمای بیرونی</figcaption></figure>
@@ -72,7 +78,7 @@
 
 <section class="card">
   <h2>اقامتگاه</h2>
-  <p>بالای شهر اشنویه، قلاتوک (برده زرد)، کنار راه اشنویه به گلاز، حدود ۶۴۰ متر غرب دهکده‌ی مامال. قطعه‌ی ۱۳٬۵۰۰ متر مربعی طبق کروکی نقشه‌برداری؛ کاربری اقامتگاه گردشگری، پیوست طرح دهکده، در مرحله‌ی پیگیری.</p>
+  <p>بالای شهر اشنویه، قلاتوک (برده زرد)، کنار راه اشنویه به گلاز، حدود ۶۴۰ متر غرب دهکده‌ی مامال. قطعه‌ی ۱۳٬۵۰۰ متر مربعی طبق کروکی نقشه‌برداری؛ کاربری اقامتگاه گردشگری، پیوست طرح دهکده، در مرحله‌ی پیگیری. برنامه: سالی {{ per_year['lodge']|fa }} واحد اقامتی.</p>
 </section>
 
 <section class="card">

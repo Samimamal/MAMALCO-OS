@@ -34,6 +34,8 @@ from .rules import (
     SALARY_MAX,
     SALARY_MIN,
     KIOSKS_VISION,
+    UNITS_PER_YEAR,
+    VILLAGE_TOTAL,
     STRUCTURE_COUNTS,
     investment_rule,
 )
@@ -181,7 +183,10 @@ def register(app: FastAPI, ctx) -> None:
         return page(request, "public/pilot.html", {
             "city_points": points, "schematic": schematic([p for p in points if p.mappable]),
             "flagged_points": [p for p in points if not p.mappable],
-            "kiosks_vision": KIOSKS_VISION, "counts": {c.value: n for c, n in STRUCTURE_COUNTS.items()},
+            "kiosks_vision": KIOSKS_VISION,
+            "per_year": {c.value: n for c, n in UNITS_PER_YEAR.items()},
+            "village_rollout": [(y, min(y * UNITS_PER_YEAR[Category.village], VILLAGE_TOTAL))
+                                for y in range(1, -(-VILLAGE_TOTAL // UNITS_PER_YEAR[Category.village]) + 1)], "counts": {c.value: n for c, n in STRUCTURE_COUNTS.items()},
             "booth_total": sum(p.booths for p in points),
             "tiers": tiers, "rollout": CITY_ROLLOUT, "expansion": EXPANSION_STEPS,
             "rules": {c: investment_rule(c, tiers[c].min_price if c in tiers else None)
