@@ -1,0 +1,51 @@
+{% extends "public/_base.html" %}
+{% from "public/_macros.html" import honeypot %}
+{% block title %}{{ title }} — MAMAL{% endblock %}
+{% block content %}
+<h1>{{ title }}</h1>
+{% if u %}<p class="lead">برای سازه‌ی <a href="/s/{{ u.code|lower }}">{{ u.code }} · {{ u.name }}</a></p>{% endif %}
+
+{% if kind.value == 'invest' and rule and tier %}
+<div class="card">
+  <p>{{ category_labels[category.value] }}: {{ tier.min_price|billions }} تا {{ tier.max_price|billions }} تومان تا بهره‌برداری.</p>
+  <p><strong>حداقل نقدینگی:</strong> {{ rule.min_cash|money }} تومان. {{ rule.payment_plan }}</p>
+  {% if rule.note %}<p class="muted">{{ rule.note }}</p>{% endif %}
+</div>
+{% endif %}
+
+{% if errors %}<div class="alert error">{% for e in errors %}<div>{{ e }}</div>{% endfor %}</div>{% endif %}
+
+<form method="post" action="/apply/{{ kind.value }}" class="card stack">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  {% if u %}<input type="hidden" name="s" value="{{ u.code|lower }}">{% endif %}
+  {{ honeypot() }}
+  <label>نام و نام خانوادگی<input name="full_name" required value="{{ values.full_name }}"></label>
+  <label>شماره تماس / واتس‌اپ<input name="phone" required dir="ltr" inputmode="tel" value="{{ values.phone }}"></label>
+  <label>ایمیل (اختیاری)<input name="email" type="email" dir="ltr" value="{{ values.email }}"></label>
+  <label>شهر<input name="city" value="{{ values.city }}"></label>
+
+  {% if not u and kind.value in ('invest', 'rent') %}
+  <label>نوع سازه
+    <select name="category" {{ 'required' if kind.value == 'invest' }}>
+      <option value="">انتخاب کنید</option>
+      {% for c in categories %}<option value="{{ c.value }}" {{ 'selected' if category == c }}>{{ category_labels[c.value] }}</option>{% endfor %}
+    </select>
+  </label>
+  {% endif %}
+
+  {% if kind.value == 'invest' %}
+  <label>مبلغ نقدی آماده (تومان)<input name="cash_amount" type="number" min="0" inputmode="numeric" required value="{{ values.cash_amount }}"></label>
+  <label>مبلغ قابل پرداخت با چک (تومان)<input name="cheque_amount" type="number" min="0" inputmode="numeric" value="{{ values.cheque_amount }}"></label>
+  {% elif kind.value == 'rent' %}
+  <label>چه کسب‌وکاری می‌خواهید در سازه راه بیندازید؟<input name="desired_role" value="{{ values.desired_role }}"></label>
+  <label>سابقه‌ی کاری<textarea name="experience" rows="3">{{ values.experience }}</textarea></label>
+  {% elif kind.value == 'job' %}
+  <label>سمت مورد نظر<input name="desired_role" required placeholder="مثلاً باریستا، فروشنده، مدیر واحد" value="{{ values.desired_role }}"></label>
+  <label>سابقه‌ی کاری<textarea name="experience" rows="3">{{ values.experience }}</textarea></label>
+  {% endif %}
+
+  <label>توضیحات<textarea name="message" rows="3">{{ values.message }}</textarea></label>
+  <p class="muted small">مدارک هویتی، کد ملی یا شماره حساب را اینجا وارد نکنید؛ در صورت نیاز بعد از تماس از شما گرفته می‌شود.</p>
+  <button type="submit" class="primary">ارسال درخواست</button>
+</form>
+{% endblock %}

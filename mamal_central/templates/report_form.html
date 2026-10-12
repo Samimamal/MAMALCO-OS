@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}گزارش روزانه — {{ unit.name }}{% endblock %}
 {% block content %}
-{% set active = 'report' %}{% include "_wsnav.html" %}
+{% with active = "report" %}{% include "_wsnav.html" %}{% endwith %}
 <h1>گزارش روزانه</h1>
 
 <form method="get" class="pickers">

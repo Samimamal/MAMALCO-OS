@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}کارکنان — {{ workspace.name }}{% endblock %}
+{% block content %}
+{% include "_wsnav.html" %}
+<h1>کارکنان</h1>
+<p class="muted">حقوق {{ salary_min|money }} تا {{ salary_max|money }} تومان · قرارداد حداقل {{ min_months|fa }} ماه · جمع حقوق ماهانه‌ی فعلی: <strong>{{ payroll|money }}</strong> تومان</p>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>نام</th><th>سازه</th><th>حقوق فعلی</th><th>افزایش بعدی</th><th>پایان قرارداد</th><th></th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+  <tr class="{{ 'empty' if not r.e.active }}">
+    <td>{{ r.e.full_name }} <span class="muted">{{ r.e.job_title }}</span></td>
+    <td>{{ r.e.unit.code or r.e.unit.name }}</td>
+    <td class="num">{{ r.salary|money }}</td>
+    <td>{% if r.next_raise %}{{ r.next_raise|jdate }} <span class="muted">({{ raise_labels[r.e.raise_rule.value] }})</span>{% else %}<span class="muted">سقف حقوق</span>{% endif %}</td>
+    <td class="{{ 'bad' if r.contract_end <= today }}">{{ r.contract_end|jdate }}</td>
+    <td><a href="?edit={{ r.e.id }}#form">ویرایش</a></td>
+  </tr>
+  {% else %}
+  <tr><td colspan="6" class="muted">هنوز کسی ثبت نشده.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% set e = editing %}
+<form method="post" action="/w/{{ workspace.slug }}/staff" class="card stack" id="form">
+  <h2>{{ 'ویرایش ' ~ e.full_name if e else 'کارمند جدید' }}</h2>
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  {% if e %}<input type="hidden" name="employee_id" value="{{ e.id }}">{% endif %}
+  <label>سازه
+    <select name="unit_id">{% for u in units %}<option value="{{ u.id }}" {{ 'selected' if e and e.unit_id == u.id }}>{{ u.code or '' }} {{ u.name }}</option>{% endfor %}</select>
+  </label>
+  <label>نام و نام خانوادگی<input name="full_name" required value="{{ e.full_name if e else '' }}"></label>
+  <div class="grid2">
+    <label>سمت<input name="job_title" value="{{ e.job_title if e else '' }}"></label>
+    <label>تلفن<input name="phone" dir="ltr" value="{{ e.phone if e else '' }}"></label>
+    <label>شروع کار<input name="start_date" type="date" required value="{{ e.start_date.isoformat() if e else '' }}"></label>
+    <label>مدت قرارداد (ماه)<input name="contract_months" type="number" min="{{ min_months }}" value="{{ e.contract_months if e else min_months }}"></label>
+    <label>حقوق پایه (تومان)<input name="base_salary" type="number" min="{{ salary_min }}" max="{{ salary_max }}" required inputmode="numeric" value="{{ e.base_salary if e else salary_min }}"></label>
+    <label>افزایش حقوق
+      <select name="raise_rule">{% for rr in raise_rules %}<option value="{{ rr.value }}" {{ 'selected' if e and e.raise_rule == rr }}>{{ raise_labels[rr.value] }}</option>{% endfor %}</select>
+    </label>
+  </div>
+  <label class="check"><input type="checkbox" name="active" value="true" {{ 'checked' if not e or e.active }}> فعال</label>
+  <label>یادداشت<textarea name="notes" rows="2">{{ e.notes if e else '' }}</textarea></label>
+  <p class="muted small">کد ملی و شماره حساب را اینجا ثبت نکنید؛ در پوشه‌ی محدود Drive نگه دارید.</p>
+  <button type="submit" class="primary">ذخیره</button>
+</form>
+{% endblock %}

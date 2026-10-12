@@ -1,0 +1,39 @@
+{% extends "public/_base.html" %}
+{% block title %}سرمایه‌گذاری در مامال{% endblock %}
+{% block content %}
+<h1>سرمایه‌گذاری در سازه‌های مامال</h1>
+<p class="lead">هر سازه یک کسب‌وکار مستقل است با حساب، گزارش مالی و قرارداد جداگانه. سرمایه‌گذار در همان سازه شریک می‌شود و گزارش ماهانه‌ی فروش، هزینه و سهم خود را دریافت می‌کند.</p>
+
+{% for c, tier, rule in rows %}
+<section class="card">
+  <div class="unit-head">
+    <h2>{{ category_labels[c.value] }}</h2>
+    {% if tier %}<span class="price">{{ tier.min_price|billions }} تا {{ tier.max_price|billions }} تومان</span>{% endif %}
+  </div>
+  {% if tier and tier.examples %}<p class="muted">{{ tier.examples }}</p>{% endif %}
+  <p><strong>حداقل نقدینگی:</strong> {{ rule.min_cash|money }} تومان{% if rule.cheques_accepted %} · باقی‌مانده با چک{% endif %}</p>
+  <p>{{ rule.payment_plan }}</p>
+  {% if rule.note %}<p class="muted">{{ rule.note }}</p>{% endif %}
+  <a class="button primary" href="/apply/invest?category={{ c.value }}">پیش‌ثبت‌نام</a>
+  <a class="button" href="/structures?category={{ c.value }}">دیدن سازه‌ها</a>
+</section>
+{% endfor %}
+
+<section class="card">
+  <h2>هزینه‌ی هر سازه تا بهره‌برداری شامل</h2>
+  <ul class="facts">{% for i in budget_items %}<li>{{ i }}</li>{% endfor %}</ul>
+  <p class="muted">قیمت نهایی به اندازه، جنس، محل و تورم مصالح بستگی دارد و برای هر سازه جداگانه اعلام می‌شود. ساخت هر سازه‌ی ابرخشت حدود {{ build_days|fa }} روز طول می‌کشد.</p>
+</section>
+
+<section class="card">
+  <h2>الگوی قرارداد مشارکت</h2>
+  <ul class="facts">
+    <li>تا بازگشت کامل سرمایه: ۶۰٪ سود خالص به سرمایه‌گذار، ۴۰٪ به مدیر پروژه</li>
+    <li>پس از بازگشت سرمایه: ۳۰٪ سرمایه‌گذار، ۷۰٪ مدیر پروژه</li>
+    <li>حق مدیریت ۱۰٪ فروش، پیش از تقسیم سود</li>
+    <li>مدت ۳ سال، قابل تمدید تا ۵ سال</li>
+    <li>گزارش مالی ماهانه و فصلی</li>
+  </ul>
+  <p class="muted small">سرمایه‌گذاری تجاری با ریسک همراه است و سود یا زمان بازگشت سرمایه تضمین نمی‌شود. اعداد بالا الگوی عمومی است؛ شرایط هر قرارداد ممکن است متفاوت باشد.</p>
+</section>
+{% endblock %}

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}قراردادها — {{ workspace.name }}{% endblock %}
 {% block content %}
-{% set active = 'contracts' %}{% include "_wsnav.html" %}
+{% with active = "contracts" %}{% include "_wsnav.html" %}{% endwith %}
 <div class="page-head">
   <h1>قراردادهای مشارکت</h1>
   {% if user.is_admin %}<a class="button primary" href="/w/{{ workspace.slug }}/contracts/new">قرارداد جدید</a>{% endif %}

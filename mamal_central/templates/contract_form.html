@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ 'ویرایش' if contract else 'قرارداد جدید' }} — MAMAL Central{% endblock %}
 {% block content %}
-{% set active = 'contracts' %}{% include "_wsnav.html" %}
+{% with active = "contracts" %}{% include "_wsnav.html" %}{% endwith %}
 <h1>{{ 'ویرایش قرارداد ' ~ contract.code if contract else 'قرارداد مشارکت جدید' }}</h1>
 <p class="muted">پیش‌فرض‌ها از الگوی قرارداد «اتوبوس کافه مامال ۰۳» است. کد ملی و مدارک هویتی را اینجا وارد نکنید؛ در پوشه‌ی محدود Drive بگذارید و لینکش را وارد کنید.</p>
 <form method="post" action="/w/{{ workspace.slug }}/contracts/save" class="card stack">

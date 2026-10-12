@@ -1,0 +1,19 @@
+{% extends "public/_base.html" %}
+{% block title %}فروشگاه مامال{% endblock %}
+{% block content %}
+<h1>فروشگاه مامال</h1>
+<p class="muted">هر سازه محصولات خودش را می‌فروشد: حضوری، آنلاین، خرده و عمده. برای سفارش وارد صفحه‌ی همان سازه شوید.</p>
+{% for u in units %}
+<section class="card">
+  <div class="unit-head"><h2><a href="/s/{{ u.code|lower }}#shop">{{ u.name }}</a></h2><span class="muted">{{ u.address }}</span></div>
+  <ul class="plist">
+    {% for p in u.products if p.active and p.sold_online %}
+    <li><span>{{ p.name }}</span><span>{{ p.retail_price|money }} / {{ p.unit_label }}{% if p.wholesale_price %} · عمده {{ p.wholesale_price|money }}{% endif %}</span></li>
+    {% endfor %}
+  </ul>
+  <a class="button primary" href="/s/{{ u.code|lower }}#shop">سفارش از {{ u.name }}</a>
+</section>
+{% else %}
+<p class="card muted">محصولات به‌زودی اینجا اضافه می‌شوند.</p>
+{% endfor %}
+{% endblock %}

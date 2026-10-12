@@ -1,0 +1,101 @@
+{% extends "public/_base.html" %}
+{% from "public/_macros.html" import honeypot %}
+{% block title %}{{ u.name }} — MAMAL{% endblock %}
+{% block description %}{{ u.tagline or u.name }}{% endblock %}
+{% block content %}
+<div class="gallery">
+  {% for p in u.photos %}<img src="/photos/{{ p.id }}" alt="{{ p.caption or u.name }}" loading="{{ 'eager' if loop.first else 'lazy' }}">{% endfor %}
+</div>
+
+<div class="page-head">
+  <div>
+    <span class="code">{{ u.code }} · {{ category_labels[u.category.value] }}{% if u.branch %} · {{ u.branch }}{% endif %}</span>
+    <h1>{{ u.name }}</h1>
+    {% if u.tagline %}<p class="lead">{{ u.tagline }}</p>{% endif %}
+  </div>
+  <span class="tag {{ 'good' if u.status.value == 'operating' else 'warn' }}">{{ structure_status_labels[u.status.value] }}</span>
+</div>
+
+{% if u.status.value == 'building' and progress is not none %}
+<div class="card">
+  <strong>در حال ساخت — {{ progress|fa }}٪</strong>
+  <div class="meter"><span style="width: {{ progress }}%"></span></div>
+  <span class="muted">شروع {{ u.build_start_date|jdate }} · تحویل حدودی {{ u.build_end_date|jdate }} ({{ u.build_days|fa }} روز)</span>
+</div>
+{% endif %}
+
+{% if u.description %}<section class="card prose">{{ u.description }}</section>{% endif %}
+
+<section class="actions">
+  {% if u.open_for_investment %}<a class="button primary" href="/apply/invest?s={{ u.code|lower }}">سرمایه‌گذاری در این سازه</a>{% endif %}
+  {% if u.open_for_rent %}<a class="button" href="/apply/rent?s={{ u.code|lower }}">اجاره / بهره‌برداری</a>{% endif %}
+  {% if u.open_for_jobs %}<a class="button" href="/apply/job?s={{ u.code|lower }}">کار در این سازه</a>{% endif %}
+  {% if u.phone %}<a class="button" href="tel:{{ u.phone }}" dir="ltr">{{ u.phone }}</a>{% endif %}
+</section>
+
+<section class="card">
+  <h2>موقعیت</h2>
+  {% if u.address %}<p>{{ u.address }}</p>{% endif %}
+  <iframe class="map" title="نقشه" loading="lazy" referrerpolicy="no-referrer"
+    src="https://www.openstreetmap.org/export/embed.html?bbox={{ u.longitude - 0.004 }},{{ u.latitude - 0.0025 }},{{ u.longitude + 0.004 }},{{ u.latitude + 0.0025 }}&amp;layer=mapnik&amp;marker={{ u.latitude }},{{ u.longitude }}"></iframe>
+  <div class="cta-row">
+    <a class="button" href="geo:{{ u.latitude }},{{ u.longitude }}?q={{ u.latitude }},{{ u.longitude }}">مسیریابی (برنامه‌ی نقشه)</a>
+    <a class="button" href="https://www.google.com/maps/search/?api=1&amp;query={{ u.latitude }},{{ u.longitude }}" target="_blank" rel="noopener noreferrer">Google Maps</a>
+  </div>
+  <p class="muted" dir="ltr">GPS: {{ u.latitude }}, {{ u.longitude }}</p>
+</section>
+
+{% if products %}
+<section class="card" id="shop">
+  <h2>محصولات و سفارش</h2>
+  <p class="muted">خرید حضوری در همین سازه، یا سفارش آنلاین برای تحویل حضوری یا ارسال. پرداخت پس از تماس و تأیید سفارش.</p>
+  {% if order_errors %}<div class="alert error">{% for e in order_errors %}<div>{{ e }}</div>{% endfor %}</div>{% endif %}
+  <form method="post" action="/s/{{ u.code|lower }}/order" class="stack">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    {{ honeypot() }}
+    <ul class="products">
+      {% for p in products %}
+      <li>
+        <div class="pinfo">
+          <strong>{{ p.name }}</strong>
+          {% if p.description %}<span class="muted">{{ p.description }}</span>{% endif %}
+          <span>{{ p.retail_price|money }} تومان / {{ p.unit_label }}</span>
+          {% if p.wholesale_price %}<span class="good">عمده از {{ p.wholesale_min_qty|fa }} {{ p.unit_label }}: {{ p.wholesale_price|money }} تومان</span>{% endif %}
+          {% if p.served_on_site %}<span class="muted">قابل سرو در محل · بیرون‌بر</span>{% endif %}
+        </div>
+        {% if p.sold_online %}
+        <label class="qty">تعداد<input name="qty_{{ p.id }}" type="number" min="0" max="10000" inputmode="numeric" value="{{ (order_values or {}).get('qty_' ~ p.id, '') }}"></label>
+        {% else %}<span class="muted">فقط حضوری</span>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    <fieldset>
+      <legend>مشخصات سفارش‌دهنده</legend>
+      <label>نام و نام خانوادگی<input name="full_name" required value="{{ (order_values or {}).get('full_name', '') }}"></label>
+      <label>شماره تماس / واتس‌اپ<input name="phone" required dir="ltr" inputmode="tel" value="{{ (order_values or {}).get('phone', '') }}"></label>
+      <label class="check"><input type="checkbox" name="delivery" value="1" {{ 'checked' if (order_values or {}).get('delivery') }}> ارسال به آدرس (در غیر این صورت تحویل حضوری)</label>
+      <label>آدرس<textarea name="address" rows="2">{{ (order_values or {}).get('address', '') }}</textarea></label>
+      <label>توضیحات<textarea name="note" rows="2">{{ (order_values or {}).get('note', '') }}</textarea></label>
+    </fieldset>
+    <button type="submit" class="primary">ثبت سفارش</button>
+  </form>
+</section>
+{% endif %}
+
+{% if u.open_for_investment and tier %}
+<section class="card">
+  <h2>سرمایه‌گذاری در {{ u.name }}</h2>
+  <p>هزینه‌ی سازه‌های {{ category_labels[u.category.value] }} تا بهره‌برداری: {{ tier.min_price|billions }} تا {{ tier.max_price|billions }} تومان.</p>
+  {% if u.budget_lines and u.budget_total %}
+  <table class="budget">
+    {% for b in u.budget_lines if b.amount %}<tr><td>{{ b.item }}</td><td class="num">{{ b.amount|money }}</td></tr>{% endfor %}
+    <tr class="sum"><td>جمع تا بهره‌برداری</td><td class="num">{{ u.budget_total|money }}</td></tr>
+  </table>
+  {% endif %}
+  <p><strong>حداقل نقدینگی:</strong> {{ rule.min_cash|money }} تومان. {{ rule.payment_plan }}</p>
+  {% if rule.note %}<p class="muted">{{ rule.note }}</p>{% endif %}
+  <p class="muted small">سرمایه‌گذاری تجاری با ریسک همراه است؛ مامال سود یا زمان بازگشت سرمایه را تضمین نمی‌کند. شرایط دقیق در قرارداد مشارکت مدنی همان سازه آمده است.</p>
+  <a class="button primary" href="/apply/invest?s={{ u.code|lower }}">ثبت درخواست سرمایه‌گذاری</a>
+</section>
+{% endif %}
+{% endblock %}

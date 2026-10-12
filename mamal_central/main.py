@@ -6,6 +6,7 @@ import datetime as dt
 import mimetypes
 import uuid
 from pathlib import Path
+from types import SimpleNamespace
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
@@ -31,6 +32,8 @@ from .models import (
     User,
     Workspace,
 )
+from . import admin_ops, public
+from .rules import CATEGORY_LABELS, RAISE_LABELS
 from .security import csrf_ok, csrf_token, verify_password
 from .settlement import compute_statement, load_month_inputs
 
@@ -66,6 +69,22 @@ def billions(value) -> str:
 templates.env.filters["billions"] = billions
 STATUS_LABELS = {"draft": "پیش‌نویس", "active": "فعال", "ended": "پایان‌یافته"}
 templates.env.globals["status_labels"] = STATUS_LABELS
+templates.env.globals["category_labels"] = {k.value: v for k, v in CATEGORY_LABELS.items()}
+templates.env.globals["raise_labels"] = {k.value: v for k, v in RAISE_LABELS.items()}
+templates.env.globals["structure_status_labels"] = {
+    "planned": "در برنامه", "building": "در حال ساخت", "operating": "فعال",
+}
+templates.env.globals["case_kind_labels"] = {
+    "invest": "سرمایه‌گذاری", "rent": "اجاره / بهره‌برداری", "job": "استخدام", "general": "عمومی",
+}
+templates.env.globals["case_status_labels"] = {
+    "new": "جدید", "contacted": "تماس گرفته شد", "qualified": "واجد شرایط",
+    "rejected": "رد شد", "converted": "قرارداد شد",
+}
+templates.env.globals["order_status_labels"] = {
+    "new": "جدید", "confirmed": "تأیید شد", "delivered": "تحویل شد", "cancelled": "لغو شد",
+}
+IMAGE_UPLOADS = {k: v for k, v in ALLOWED_UPLOADS.items() if v.startswith("image/")}
 
 
 class NotLoggedIn(Exception):
@@ -126,6 +145,16 @@ def create_app(settings: Settings | None = None, today=dt.date.today) -> FastAPI
                 return m.role.value
         return None
 
+    def units_for(user: User, workspace: Workspace) -> list[Unit]:
+        """Structures this user may see inside the workspace."""
+        units = [u for u in workspace.units if u.active]
+        if user.is_admin:
+            return units
+        for m in user.memberships:
+            if m.workspace_id == workspace.id and m.unit_id is not None:
+                return [u for u in units if u.id == m.unit_id]
+        return units
+
     def visible_workspaces(db: Session, user: User) -> list[Workspace]:
         if user.is_admin:
             return list(db.scalars(select(Workspace).order_by(Workspace.name)))
@@ -168,7 +197,7 @@ def create_app(settings: Settings | None = None, today=dt.date.today) -> FastAPI
             )
         request.session.clear()
         request.session["user_id"] = user.id
-        return RedirectResponse("/", status_code=303)
+        return RedirectResponse("/admin", status_code=303)
 
     @app.post("/logout")
     def logout(request: Request, csrf: str = Form("")):
@@ -178,7 +207,7 @@ def create_app(settings: Settings | None = None, today=dt.date.today) -> FastAPI
 
     # ---------------------------------------------------------- workspaces
 
-    @app.get("/", response_class=HTMLResponse)
+    @app.get("/admin", response_class=HTMLResponse)
     def home(request: Request, user: User = Depends(current_user), db: Session = Depends(get_db)):
         workspaces = visible_workspaces(db, user)
         if len(workspaces) == 1:
@@ -195,7 +224,7 @@ def create_app(settings: Settings | None = None, today=dt.date.today) -> FastAPI
         workspace, role = load_workspace(db, user, slug)
         if role == Role.staff.value:
             return RedirectResponse(f"/w/{slug}/report", status_code=303)
-        summaries = build_dashboard(db, workspace, today(), settings.dashboard_days)
+        summaries = build_dashboard(db, units_for(user, workspace), today(), settings.dashboard_days)
         return render(
             request,
             "dashboard.html",
@@ -218,8 +247,8 @@ def create_app(settings: Settings | None = None, today=dt.date.today) -> FastAPI
         except ValueError:
             raise HTTPException(400, "Invalid date")
 
-    def get_unit(workspace: Workspace, unit_id: int | None) -> Unit:
-        units = [u for u in workspace.units if u.active]
+    def get_unit(workspace: Workspace, unit_id: int | None, user: User) -> Unit:
+        units = units_for(user, workspace)
         if not units:
             raise HTTPException(404, "This workspace has no units yet")
         if unit_id is None:
@@ -240,7 +269,7 @@ def create_app(settings: Settings | None = None, today=dt.date.today) -> FastAPI
         db: Session = Depends(get_db),
     ):
         workspace, role = load_workspace(db, user, slug)
-        unit = get_unit(workspace, unit_id)
+        unit = get_unit(workspace, unit_id, user)
         report_date = parse_date(date)
         report = db.scalar(
             select(DailyReport).where(
@@ -255,7 +284,7 @@ def create_app(settings: Settings | None = None, today=dt.date.today) -> FastAPI
                 "workspace": workspace,
                 "role": role,
                 "unit": unit,
-                "units": [u for u in workspace.units if u.active],
+                "units": units_for(user, workspace),
                 "report_date": report_date,
                 "report": report,
                 "editable": can_edit_date(role, report_date),
@@ -283,7 +312,7 @@ def create_app(settings: Settings | None = None, today=dt.date.today) -> FastAPI
     ):
         require_csrf(request, csrf)
         workspace, role = load_workspace(db, user, slug)
-        unit = get_unit(workspace, unit_id)
+        unit = get_unit(workspace, unit_id, user)
         date = parse_date(report_date)
         if not can_edit_date(role, date):
             raise HTTPException(403, "This date can no longer be edited")
@@ -354,7 +383,8 @@ def create_app(settings: Settings | None = None, today=dt.date.today) -> FastAPI
         att = db.get(Attachment, attachment_id)
         if not att:
             raise HTTPException(404)
-        load_workspace(db, user, att.report.unit.workspace.slug)
+        workspace, _role = load_workspace(db, user, att.report.unit.workspace.slug)
+        get_unit(workspace, att.report.unit_id, user)
         path = settings.upload_dir / att.stored_name
         if not path.exists():
             raise HTTPException(404)
@@ -363,6 +393,26 @@ def create_app(settings: Settings | None = None, today=dt.date.today) -> FastAPI
             media_type=att.content_type or mimetypes.guess_type(path.name)[0],
             headers={"X-Content-Type-Options": "nosniff"},
         )
+
+    async def save_upload(upload: UploadFile, allowed: dict[str, str]) -> tuple[str, str]:
+        """Store an upload under a random name; returns (stored_name, content_type)."""
+        suffix = Path(upload.filename or "").suffix.lower()
+        if suffix not in allowed:
+            raise HTTPException(400, f"File type not allowed: {upload.filename}")
+        stored_name = f"{uuid.uuid4().hex}{suffix}"
+        target = settings.upload_dir / stored_name
+        size = 0
+        try:
+            with target.open("wb") as fh:
+                while chunk := await upload.read(1024 * 1024):
+                    size += len(chunk)
+                    if size > settings.max_upload_bytes:
+                        raise HTTPException(400, f"File too large: {upload.filename}")
+                    fh.write(chunk)
+        except Exception:
+            target.unlink(missing_ok=True)
+            raise
+        return stored_name, allowed[suffix]
 
     # ------------------------------------------------------ structure catalog
 
@@ -437,7 +487,7 @@ def create_app(settings: Settings | None = None, today=dt.date.today) -> FastAPI
     ):
         workspace, role = load_workspace(db, user, slug)
         require_manager(role)
-        unit = get_unit(workspace, unit_id)
+        unit = get_unit(workspace, unit_id, user)
         jy, jm = parse_month(month)
         cost = db.scalar(
             select(MonthlyCost).where(
@@ -451,7 +501,7 @@ def create_app(settings: Settings | None = None, today=dt.date.today) -> FastAPI
             "costs_form.html",
             {
                 "user": user, "workspace": workspace, "role": role, "unit": unit,
-                "units": [u for u in workspace.units if u.active],
+                "units": units_for(user, workspace),
                 "ym": (jy, jm), "months": recent_months(), "cost": cost, "saved": bool(saved),
             },
         )
@@ -476,7 +526,7 @@ def create_app(settings: Settings | None = None, today=dt.date.today) -> FastAPI
         require_csrf(request, csrf)
         workspace, role = load_workspace(db, user, slug)
         require_manager(role)
-        unit = get_unit(workspace, unit_id)
+        unit = get_unit(workspace, unit_id, user)
         jy, jm = parse_month(month)
         cost = db.scalar(
             select(MonthlyCost).where(
@@ -498,10 +548,13 @@ def create_app(settings: Settings | None = None, today=dt.date.today) -> FastAPI
 
     # ------------------------------------------------- partnership contracts
 
-    def load_contract(db: Session, workspace: Workspace, contract_id: int) -> PartnershipContract:
+    def load_contract(
+        db: Session, workspace: Workspace, contract_id: int, user: User
+    ) -> PartnershipContract:
         contract = db.get(PartnershipContract, contract_id)
         if not contract or contract.workspace_id != workspace.id:
             raise HTTPException(404)
+        get_unit(workspace, contract.unit_id, user)
         return contract
 
     @app.get("/w/{slug}/contracts", response_class=HTMLResponse)
@@ -514,7 +567,10 @@ def create_app(settings: Settings | None = None, today=dt.date.today) -> FastAPI
         rows = []
         for c in db.scalars(
             select(PartnershipContract)
-            .where(PartnershipContract.workspace_id == workspace.id)
+            .where(
+                PartnershipContract.workspace_id == workspace.id,
+                PartnershipContract.unit_id.in_([u.id for u in units_for(user, workspace)]),
+            )
             .order_by(PartnershipContract.code)
         ):
             rows.append(compute_statement(c, load_month_inputs(db, c, today()), today()))
@@ -526,7 +582,7 @@ def create_app(settings: Settings | None = None, today=dt.date.today) -> FastAPI
     def contract_form_ctx(user, workspace, role, contract):
         return {
             "user": user, "workspace": workspace, "role": role, "contract": contract,
-            "units": [u for u in workspace.units if u.active], "statuses": list(ContractStatus),
+            "units": units_for(user, workspace), "statuses": list(ContractStatus),
         }
 
     @app.get("/w/{slug}/contracts/new", response_class=HTMLResponse)
@@ -545,7 +601,7 @@ def create_app(settings: Settings | None = None, today=dt.date.today) -> FastAPI
     ):
         workspace, role = load_workspace(db, user, slug)
         require_admin(user)
-        contract = load_contract(db, workspace, contract_id)
+        contract = load_contract(db, workspace, contract_id, user)
         return render(
             request, "contract_form.html", contract_form_ctx(user, workspace, role, contract)
         )
@@ -580,7 +636,7 @@ def create_app(settings: Settings | None = None, today=dt.date.today) -> FastAPI
         require_csrf(request, csrf)
         workspace, _role = load_workspace(db, user, slug)
         require_admin(user)
-        unit = get_unit(workspace, unit_id)
+        unit = get_unit(workspace, unit_id, user)
         penalties = [p.strip() for p in exit_penalties.replace("،", ",").split(",") if p.strip()]
         if not all(p.isdigit() and int(p) <= 100 for p in penalties):
             raise HTTPException(400, "Exit penalties must be comma-separated percentages")
@@ -594,7 +650,7 @@ def create_app(settings: Settings | None = None, today=dt.date.today) -> FastAPI
             contract = PartnershipContract(workspace_id=workspace.id)
             db.add(contract)
         else:
-            contract = load_contract(db, workspace, contract_id)
+            contract = load_contract(db, workspace, contract_id, user)
             if clash and clash.id != contract.id:
                 raise HTTPException(400, f"Contract code {code} already exists")
         contract.code, contract.title, contract.unit_id = code, title.strip(), unit.id
@@ -621,13 +677,22 @@ def create_app(settings: Settings | None = None, today=dt.date.today) -> FastAPI
     ):
         workspace, role = load_workspace(db, user, slug)
         require_manager(role)
-        contract = load_contract(db, workspace, contract_id)
+        contract = load_contract(db, workspace, contract_id, user)
         statement = compute_statement(contract, load_month_inputs(db, contract, today()), today())
         return render(
             request, "contract_detail.html",
             {"user": user, "workspace": workspace, "role": role, "s": statement, "c": contract},
         )
 
+    ctx = SimpleNamespace(
+        settings=settings, today=today, get_db=get_db, current_user=current_user,
+        render=render, require_csrf=require_csrf, load_workspace=load_workspace,
+        units_for=units_for, get_unit=get_unit, parse_date=parse_date,
+        require_manager=require_manager, require_admin=require_admin,
+        load_contract=load_contract, save_upload=save_upload, image_uploads=IMAGE_UPLOADS,
+    )
+    admin_ops.register(app, ctx)
+    public.register(app, ctx)
     return app
 
 

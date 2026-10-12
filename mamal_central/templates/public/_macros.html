@@ -1,0 +1,15 @@
+{% macro card(u) %}
+<a class="scard" href="/s/{{ u.code|lower }}">
+  {% if u.photos %}<img src="/photos/{{ u.photos[0].id }}" alt="{{ u.name }}" loading="lazy">{% endif %}
+  <div class="scard-body">
+    <span class="code">{{ u.code }}</span>
+    <h3>{{ u.name }}</h3>
+    <span class="muted">{{ u.branch or category_labels[u.category.value] }}{% if u.address %} · {{ u.address }}{% endif %}</span>
+    <span class="tag {{ 'good' if u.status.value == 'operating' else 'warn' }}">{{ structure_status_labels[u.status.value] }}</span>
+  </div>
+</a>
+{% endmacro %}
+
+{% macro honeypot() %}
+<div class="hp" aria-hidden="true"><label>وب‌سایت<input name="website" tabindex="-1" autocomplete="off"></label></div>
+{% endmacro %}

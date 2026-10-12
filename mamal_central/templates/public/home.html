@@ -1,0 +1,38 @@
+{% extends "public/_base.html" %}
+{% from "public/_macros.html" import card %}
+{% block content %}
+<section class="hero">
+  <h1>مامال؛ سازه‌هایی که هر کدام یک کسب‌وکار مستقل‌اند</h1>
+  <p>چای‌خانه، کافه، لبنیات و سازه‌های فرم‌دار شهری، دهکده و اقامتگاه‌های مامال. هر سازه فروشگاه، تیم، حسابداری و سرمایه‌گذاران خودش را دارد.</p>
+  <div class="cta-row">
+    <a class="button primary" href="/structures">دیدن سازه‌ها</a>
+    <a class="button" href="/invest">سرمایه‌گذاری</a>
+    <a class="button" href="/shop">فروشگاه</a>
+  </div>
+</section>
+
+<section class="cats">
+  {% for c in category_order %}
+  <a class="card cat" href="/structures?category={{ c.value }}">
+    <h2>{{ category_labels[c.value] }}</h2>
+    {% if tiers.get(c) %}<span class="price">{{ tiers[c].min_price|billions }} تا {{ tiers[c].max_price|billions }} تومان</span>{% endif %}
+    <span class="muted">{{ counts[c]|fa }} سازه روی نقشه · برنامه: {{ planned|fa }} سازه</span>
+  </a>
+  {% endfor %}
+</section>
+
+{% if featured %}
+<h2 class="section-title">سازه‌های مامال</h2>
+<div class="sgrid">{% for u in featured %}{{ card(u) }}{% endfor %}</div>
+{% endif %}
+
+<section class="card ways">
+  <h2>با مامال چطور همراه شوید</h2>
+  <ul>
+    <li><a href="/invest">سرمایه‌گذاری</a> در یک سازه‌ی مشخص</li>
+    <li><a href="/apply/rent">اجاره و بهره‌برداری</a> از یک سازه</li>
+    <li><a href="/jobs">کار در سازه‌های مامال</a></li>
+    <li><a href="/shop">خرید محصولات</a> به‌صورت حضوری، آنلاین، خرده و عمده</li>
+  </ul>
+</section>
+{% endblock %}

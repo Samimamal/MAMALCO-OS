@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}سازه‌ها — {{ workspace.name }}{% endblock %}
+{% block content %}
+{% include "_wsnav.html" %}
+<h1>سازه‌های {{ workspace.name }}</h1>
+<p class="muted">هر سازه وقتی روی سایت عمومی دیده می‌شود که «انتشار» روشن باشد و موقعیت GPS و حداقل یک عکس داشته باشد.</p>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>کد</th><th>نام</th><th>وضعیت</th><th>سایت</th><th>کمبودها</th></tr></thead>
+  <tbody>
+  {% for u in units %}
+  <tr>
+    <td><a href="/w/{{ workspace.slug }}/structures/{{ u.id }}">{{ u.code or '—' }}</a></td>
+    <td><a href="/w/{{ workspace.slug }}/structures/{{ u.id }}">{{ u.name }}</a>{% if u.branch %} <span class="muted">· {{ u.branch }}</span>{% endif %}</td>
+    <td>
+      {{ structure_status_labels[u.status.value] }}
+      {% set pr = u.build_progress(today) %}{% if u.status.value == 'building' and pr is not none %} {{ pr|fa }}٪{% endif %}
+    </td>
+    <td>{% if u.is_listed %}<a class="tag good" href="/s/{{ u.code|lower }}" target="_blank">منتشر شده</a>{% else %}<span class="tag">منتشر نشده</span>{% endif %}</td>
+    <td>
+      {% if not u.has_location %}<span class="tag warn">GPS</span>{% endif %}
+      {% if not u.photos %}<span class="tag warn">عکس</span>{% endif %}
+      {% if not u.products %}<span class="tag">محصول</span>{% endif %}
+      {% if not u.budget_lines %}<span class="tag">بودجه</span>{% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

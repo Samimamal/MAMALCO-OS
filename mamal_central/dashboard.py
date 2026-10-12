@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from .models import DailyReport, Unit, Workspace
+from .models import DailyReport, Unit
 
 
 @dataclass
@@ -82,11 +82,10 @@ class UnitSummary:
 
 
 def build_dashboard(
-    db: Session, workspace: Workspace, end: dt.date, days: int
+    db: Session, units: list[Unit], end: dt.date, days: int
 ) -> list[UnitSummary]:
     start = end - dt.timedelta(days=days - 1)
     dates = [end - dt.timedelta(days=i) for i in range(days)]
-    units = [u for u in workspace.units if u.active]
     reports = db.scalars(
         select(DailyReport)
         .where(

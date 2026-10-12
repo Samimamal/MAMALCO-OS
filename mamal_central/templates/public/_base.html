@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}مامال — MAMAL{% endblock %}</title>
+  <meta name="description" content="{% block description %}مامال: سازه‌های فرم‌دار شهری، دهکده و اقامتگاه‌های مامال — خرید حضوری و آنلاین، سرمایه‌گذاری، اجاره و همکاری.{% endblock %}">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="public">
+  <header class="topbar">
+    <a class="brand" href="/">MAMAL</a>
+    <nav class="pubnav">
+      <a href="/structures">سازه‌ها</a>
+      <a href="/shop">فروشگاه</a>
+      <a href="/invest">سرمایه‌گذاری</a>
+      <a href="/jobs">همکاری</a>
+    </nav>
+  </header>
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="footer">
+    <div class="container">
+      <strong>MAMAL</strong> · MAMALCO GmbH, Hamburg
+      · <a href="/apply/general">تماس با ما</a>
+      · <a href="/login">ورود کارکنان</a>
+    </div>
+  </footer>
+</body>
+</html>

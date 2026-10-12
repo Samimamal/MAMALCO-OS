@@ -11,7 +11,17 @@ from sqlalchemy import select
 
 from .config import Settings
 from .db import make_engine, make_session_factory
-from .models import Membership, Role, StructureTier, Unit, User, Workspace
+from .models import (
+    Category,
+    Membership,
+    Role,
+    StructureStatus,
+    StructureTier,
+    Unit,
+    User,
+    Workspace,
+)
+from .rules import CATEGORY_LABELS, CATEGORY_PREFIX, STRUCTURES_PER_CATEGORY
 from .security import hash_password
 
 # Starting point for the Oshnavieh kiosks; targets in toman per day.
@@ -29,6 +39,7 @@ MAMAL_KIOSKS = {
 # size, material, site, and inflation; update weekly from the /catalog page.
 STRUCTURE_TIERS = [
     {
+        "category": Category.form,
         "name": "سازه‌های فرم‌دار مامال",
         "examples": "کیوسک، چای‌خانه، کافه، اتوبوس‌کافه، لبنیاتی",
         "includes": "سازه، تجهیزات، مارکتینگ و راه‌اندازی تا بهره‌برداری",
@@ -36,6 +47,7 @@ STRUCTURE_TIERS = [
         "max_price": 3_000_000_000,
     },
     {
+        "category": Category.village,
         "name": "سازه‌های دهکده مامال",
         "examples": "واحدهای اقامتی و خدماتی دهکده",
         "includes": "سازه، تجهیزات و راه‌اندازی تا بهره‌برداری",
@@ -43,6 +55,7 @@ STRUCTURE_TIERS = [
         "max_price": 6_000_000_000,
     },
     {
+        "category": Category.lodge,
         "name": "اقامتگاه‌های مامال",
         "examples": "اقامتگاه کامل مامال",
         "includes": "سازه، تجهیزات، مارکتینگ و راه‌اندازی تا بهره‌برداری",
@@ -116,15 +129,22 @@ def cmd_grant(db, args):
     user = db.scalar(select(User).where(User.username == args.username.lower()))
     if not user:
         sys.exit("No such user")
+    unit_id = None
+    if args.unit:
+        unit = db.scalar(select(Unit).where(Unit.code == args.unit.upper()))
+        if not unit or unit.workspace_id != ws.id:
+            sys.exit(f"No structure {args.unit} in {ws.slug}")
+        unit_id = unit.id
     membership = db.scalar(
         select(Membership).where(Membership.user_id == user.id, Membership.workspace_id == ws.id)
     )
     if membership:
-        membership.role = Role(args.role)
+        membership.role, membership.unit_id = Role(args.role), unit_id
     else:
-        db.add(Membership(user_id=user.id, workspace_id=ws.id, role=Role(args.role)))
+        db.add(Membership(user_id=user.id, workspace_id=ws.id, role=Role(args.role), unit_id=unit_id))
     db.commit()
-    print(f"{user.username} is {args.role} of {ws.slug}")
+    scope = f" (only {args.unit.upper()})" if unit_id else ""
+    print(f"{user.username} is {args.role} of {ws.slug}{scope}")
 
 
 def cmd_init_mamal(db, _args):
@@ -135,6 +155,47 @@ def cmd_init_mamal(db, _args):
     db.add(ws)
     db.commit()
     print(f"Created workspace {ws.slug} with {len(ws.units)} units")
+
+
+STRUCTURE_WORKSPACES = {
+    Category.form: ("mamal-form", "سازه‌های فرم‌دار مامال", "سازه‌ی فرم‌دار مامال"),
+    Category.village: ("mamal-village", "دهکده مامال", "سازه‌ی دهکده مامال"),
+    Category.lodge: ("mamal-lodges", "اقامتگاه‌های مامال", "اقامتگاه مامال"),
+}
+# Units already operating get the first form codes.
+EXISTING_FORM_UNITS = [
+    ("MAMAL Bazaar", "بازار"),
+    ("چای‌خانه مامال", "چای‌خانه"),
+    ("لبنیات مامال", "لبنیات"),
+]
+
+
+def cmd_init_structures(db, args):
+    """Create one workspace per category with N numbered structure slots."""
+    count = args.count
+    created = 0
+    for category, (slug, ws_name, unit_name) in STRUCTURE_WORKSPACES.items():
+        ws = db.scalar(select(Workspace).where(Workspace.slug == slug))
+        if ws is None:
+            ws = Workspace(slug=slug, name=ws_name)
+            db.add(ws)
+            db.flush()
+        prefix = CATEGORY_PREFIX[category]
+        for i in range(1, count + 1):
+            code = f"{prefix}-{i:02d}"
+            if db.scalar(select(Unit).where(Unit.code == code)):
+                continue
+            name, branch, status, target = f"{unit_name} {code}", "", StructureStatus.planned, 0
+            if category == Category.form and i <= len(EXISTING_FORM_UNITS):
+                name, branch = EXISTING_FORM_UNITS[i - 1]
+                status, target = StructureStatus.operating, 3_000_000
+            db.add(Unit(
+                workspace_id=ws.id, name=name, code=code, category=category, branch=branch,
+                status=status, daily_target=target,
+            ))
+            created += 1
+    db.commit()
+    print(f"Created {created} structures ({', '.join(CATEGORY_LABELS[c] for c in STRUCTURE_WORKSPACES)})")
 
 
 def cmd_init_catalog(db, _args):
@@ -151,7 +212,7 @@ def cmd_list(db, _args):
         print(f"{ws.slug}  {ws.name}")
         for u in ws.units:
             state = "" if u.active else " (inactive)"
-            print(f"  unit #{u.id}  {u.name}  target={u.daily_target:,}{state}")
+            print(f"  {u.code or '#' + str(u.id):6} {u.name}  target={u.daily_target:,}{state}")
         for m in ws.memberships:
             print(f"  {m.role.value:8} {m.user.username}")
     admins = db.scalars(select(User).where(User.is_admin)).all()
@@ -189,10 +250,15 @@ def main(argv=None):
     p.add_argument("username")
     p.add_argument("workspace")
     p.add_argument("role", choices=[r.value for r in Role])
+    p.add_argument("--unit", help="limit access to one structure code, e.g. F-02")
     p.set_defaults(func=cmd_grant)
 
     sub.add_parser("init-mamal").set_defaults(func=cmd_init_mamal)
     sub.add_parser("init-catalog").set_defaults(func=cmd_init_catalog)
+
+    p = sub.add_parser("init-structures")
+    p.add_argument("--count", type=int, default=STRUCTURES_PER_CATEGORY)
+    p.set_defaults(func=cmd_init_structures)
     sub.add_parser("list").set_defaults(func=cmd_list)
 
     args = parser.parse_args(argv)

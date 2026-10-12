@@ -17,9 +17,23 @@ mamal_central/
   dashboard.py  per-unit scoreboard
   settlement.py monthly investor statement for partnership contracts
   jalali.py     Jalali dates and Persian digits for display
-  main.py       routes
+  main.py       app factory, auth, daily report, costs, contracts, catalog
+  admin_ops.py  structure profile/photos/budget, applications, products, orders, staff, payouts
+  public.py     public site: home, structures, structure page + order, invest/jobs/shop, forms
+  rules.py      business rules: investment minimums, payment plans, salaries, categories
   cli.py        admin commands
 ```
+
+## Structures
+- Every `Unit` is one MAMAL structure with a public code (`F-01`, `V-01`, `L-01`), category, GPS, photos, budget lines, products, staff and contracts.
+- `init-structures` creates three workspaces (`mamal-form`, `mamal-village`, `mamal-lodges`) with 30 structures each.
+- A structure is public only when `is_public` and it has GPS and at least one photo (`Unit.is_listed`); unlisted structures 404 publicly, photos included.
+- `Membership.unit_id` limits a user to a single structure inside a workspace.
+
+## Public forms
+- CSRF token from the session, a honeypot field and an in-memory per-IP rate limit (8 per 10 min).
+- Applications (`MC-YYYY-NNNN`) and orders (`MO-NNNNN`) land in the structure's admin inbox.
+- Orders take the wholesale price automatically from the minimum quantity; payment is confirmed by phone until a gateway is added.
 
 ## Workspace model
 - `Workspace` = one brand / company / project. New business = new row, no new system.

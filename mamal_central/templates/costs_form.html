@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}هزینه‌های ماهانه — {{ unit.name }}{% endblock %}
 {% block content %}
-{% set active = 'costs' %}{% include "_wsnav.html" %}
+{% with active = "costs" %}{% include "_wsnav.html" %}{% endwith %}
 <h1>هزینه‌های ماهانه</h1>
 <p class="muted">خرید مواد اولیه از گزارش‌های روزانه جمع می‌شود و اینجا وارد نمی‌شود. این اعداد مبنای سود خالص و سهم سرمایه‌گذار است.</p>
 

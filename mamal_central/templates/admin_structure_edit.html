@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}{{ unit.code }} — {{ unit.name }}{% endblock %}
+{% block content %}
+{% include "_wsnav.html" %}
+<div class="page-head">
+  <h1>{{ unit.code or '' }} · {{ unit.name }}</h1>
+  {% if unit.is_listed %}<a href="/s/{{ unit.code|lower }}" target="_blank">مشاهده در سایت ←</a>{% endif %}
+</div>
+{% if saved %}<p class="alert success">ذخیره شد.</p>{% endif %}
+{% if unit.is_public and not unit.is_listed %}<p class="alert error">انتشار روشن است ولی سازه هنوز در سایت دیده نمی‌شود: {% if not unit.has_location %}موقعیت GPS{% endif %}{% if not unit.has_location and not unit.photos %} و {% endif %}{% if not unit.photos %}عکس{% endif %} لازم است.</p>{% endif %}
+
+<form method="post" action="/w/{{ workspace.slug }}/structures/{{ unit.id }}" class="card stack">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <fieldset>
+    <legend>هویت سازه</legend>
+    <label>نام<input name="name" required value="{{ unit.name }}"></label>
+    <label>شاخه / نوع کسب‌وکار<input name="branch" placeholder="چای‌خانه، کافه، لبنیات، ..." value="{{ unit.branch }}"></label>
+    <label>شعار کوتاه<input name="tagline" value="{{ unit.tagline }}"></label>
+    <label>معرفی<textarea name="description" rows="4">{{ unit.description }}</textarea></label>
+    <label>تلفن / واتس‌اپ سازه<input name="phone" dir="ltr" value="{{ unit.phone }}"></label>
+  </fieldset>
+  <fieldset>
+    <legend>موقعیت</legend>
+    <label>آدرس<input name="address" value="{{ unit.address }}"></label>
+    <div class="grid2">
+      <label>عرض جغرافیایی (Latitude)<input name="latitude" dir="ltr" inputmode="decimal" placeholder="37.0393" value="{{ unit.latitude if unit.latitude is not none else '' }}"></label>
+      <label>طول جغرافیایی (Longitude)<input name="longitude" dir="ltr" inputmode="decimal" placeholder="45.0995" value="{{ unit.longitude if unit.longitude is not none else '' }}"></label>
+    </div>
+    <button type="button" id="gps">موقعیت فعلی من (وقتی کنار سازه هستید)</button>
+  </fieldset>
+  <fieldset>
+    <legend>ساخت و بهره‌برداری</legend>
+    <label>وضعیت
+      <select name="status">{% for st in statuses %}<option value="{{ st.value }}" {{ 'selected' if unit.status == st }}>{{ structure_status_labels[st.value] }}</option>{% endfor %}</select>
+    </label>
+    <div class="grid2">
+      <label>شروع ساخت<input type="date" name="build_start_date" value="{{ unit.build_start_date.isoformat() if unit.build_start_date else '' }}"></label>
+      <label>مدت ساخت (روز)<input type="number" name="build_days" min="1" value="{{ unit.build_days }}"></label>
+    </div>
+    {% set pr = unit.build_progress(today) %}
+    {% if pr is not none %}<p class="muted">پیشرفت زمانی: {{ pr|fa }}٪ · تحویل {{ unit.build_end_date|jdate }}</p>{% endif %}
+    <label>هدف فروش روزانه (تومان)<input type="number" name="daily_target" min="0" inputmode="numeric" value="{{ unit.daily_target }}"></label>
+  </fieldset>
+  <fieldset>
+    <legend>سایت عمومی</legend>
+    <label class="check"><input type="checkbox" name="is_public" value="true" {{ 'checked' if unit.is_public }}> انتشار در mamalco.com</label>
+    <label class="check"><input type="checkbox" name="open_for_investment" value="true" {{ 'checked' if unit.open_for_investment }}> پذیرش سرمایه‌گذار</label>
+    <label class="check"><input type="checkbox" name="open_for_rent" value="true" {{ 'checked' if unit.open_for_rent }}> پذیرش درخواست اجاره</label>
+    <label class="check"><input type="checkbox" name="open_for_jobs" value="true" {{ 'checked' if unit.open_for_jobs }}> پذیرش درخواست کار</label>
+  </fieldset>
+  <button type="submit" class="primary">ذخیره</button>
+</form>
+
+<section class="card">
+  <h2>عکس‌ها</h2>
+  <div class="thumbs">
+    {% for p in unit.photos %}
+    <figure>
+      <img src="/photos/{{ p.id }}" alt="">
+      <form method="post" action="/w/{{ workspace.slug }}/structures/{{ unit.id }}/photos/{{ p.id }}/delete">
+        <input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit" class="link">حذف</button>
+      </form>
+    </figure>
+    {% endfor %}
+  </div>
+  <form method="post" action="/w/{{ workspace.slug }}/structures/{{ unit.id }}/photos" enctype="multipart/form-data" class="stack">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="file" name="photos" accept="image/*" multiple required>
+    <input name="caption" placeholder="توضیح عکس (اختیاری)">
+    <button type="submit">بارگذاری عکس</button>
+  </form>
+</section>
+
+<section class="card">
+  <h2>بودجه تا بهره‌برداری (تومان)</h2>
+  <form method="post" action="/w/{{ workspace.slug }}/structures/{{ unit.id }}/budget" class="stack">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    {% for b in budget %}
+    <div class="grid2"><input name="item" value="{{ b.item }}"><input name="amount" type="number" min="0" inputmode="numeric" class="sale" value="{{ b.amount or '' }}"></div>
+    {% endfor %}
+    <div class="grid2"><input name="item" placeholder="ردیف جدید"><input name="amount" type="number" min="0" inputmode="numeric" class="sale"></div>
+    <p class="total">جمع: <strong id="total">۰</strong> تومان</p>
+    <button type="submit">ذخیره بودجه</button>
+  </form>
+</section>
+<script src="/static/sum.js"></script>
+<script>
+document.getElementById('gps').addEventListener('click', function () {
+  if (!navigator.geolocation) return alert('مرورگر موقعیت را پشتیبانی نمی‌کند');
+  navigator.geolocation.getCurrentPosition(function (pos) {
+    document.querySelector('[name=latitude]').value = pos.coords.latitude.toFixed(6);
+    document.querySelector('[name=longitude]').value = pos.coords.longitude.toFixed(6);
+  }, function () { alert('دسترسی به موقعیت داده نشد'); }, { enableHighAccuracy: true });
+});
+</script>
+{% endblock %}

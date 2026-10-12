@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ c.code }} — {{ c.title }}{% endblock %}
 {% block content %}
-{% set active = 'contracts' %}{% include "_wsnav.html" %}
+{% with active = "contracts" %}{% include "_wsnav.html" %}{% endwith %}
 <div class="page-head">
   <h1>{{ c.code }} · {{ c.title }}</h1>
   {% if user.is_admin %}<a href="/w/{{ workspace.slug }}/contracts/{{ c.id }}/edit">ویرایش</a>{% endif %}
@@ -87,6 +87,26 @@
   </table>
   </div>
   <p class="muted">ماه «بدون هزینه» یعنی هزینه‌های ماهانه‌اش ثبت نشده و سود خالص آن بیش از واقع نشان داده می‌شود.</p>
+  {% endif %}
+</section>
+
+<section class="card" id="payouts">
+  <h2>پرداخت‌های واقعی به سرمایه‌گذار</h2>
+  <p>سهم محاسبه‌شده تا امروز: <strong>{{ s.investor_total|money }}</strong> · پرداخت‌شده: <strong>{{ c.paid_total|money }}</strong> ·
+    {% set due = s.investor_total - c.paid_total %}
+    {% if due > 0 %}<span class="bad">مانده‌ی پرداخت: {{ due|money }}</span>{% elif due < 0 %}<span class="warn-text">بیش‌پرداخت: {{ (-due)|money }}</span>{% else %}<span class="good">تسویه</span>{% endif %}
+  </p>
+  {% if c.payouts %}
+  <ul class="plist">{% for p in c.payouts %}<li><span>{{ p.paid_on|jdate }} {{ p.note }}</span><span>{{ p.amount|money }}</span></li>{% endfor %}</ul>
+  {% endif %}
+  {% if user.is_admin %}
+  <form method="post" action="/w/{{ workspace.slug }}/contracts/{{ c.id }}/payouts" class="inline-form">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label>تاریخ<input type="date" name="paid_on" required></label>
+    <label>مبلغ (تومان)<input type="number" name="amount" min="1" required inputmode="numeric"></label>
+    <button type="submit">ثبت پرداخت</button>
+    <input name="note" placeholder="توضیح (مثلاً واریز بانکی، شماره پیگیری)">
+  </form>
   {% endif %}
 </section>
 

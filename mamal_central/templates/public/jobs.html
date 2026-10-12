@@ -1,0 +1,19 @@
+{% extends "public/_base.html" %}
+{% block title %}همکاری با مامال{% endblock %}
+{% block content %}
+<h1>کار در سازه‌های مامال</h1>
+<section class="card">
+  <ul class="facts">
+    <li>حقوق ماهانه از {{ salary_min|money }} تا {{ salary_max|money }} تومان</li>
+    <li>افزایش حقوق: {{ raise_labels|join(' یا ') }}</li>
+    <li>حداقل مدت قرارداد {{ min_months|fa }} ماه</li>
+  </ul>
+  <a class="button primary" href="/apply/job">ثبت درخواست همکاری</a>
+</section>
+{% if units %}
+<h2 class="section-title">سازه‌هایی که نیرو می‌پذیرند</h2>
+<ul class="list">
+  {% for u in units %}<li><a href="/apply/job?s={{ u.code|lower }}">{{ u.code }} · {{ u.name }}</a> <span class="muted">{{ u.address }}</span></li>{% endfor %}
+</ul>
+{% endif %}
+{% endblock %}

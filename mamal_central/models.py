@@ -15,6 +15,7 @@ from sqlalchemy import (
     Date,
     DateTime,
     Enum,
+    Float,
     ForeignKey,
     Integer,
     String,
@@ -34,6 +35,19 @@ class Role(str, enum.Enum):
     staff = "staff"  # operator: submits the daily report for their units
 
 
+class Category(str, enum.Enum):
+    form = "form"  # in-city form structures: tea house, café, dairy, ...
+    village = "village"
+    lodge = "lodge"
+    other = "other"
+
+
+class StructureStatus(str, enum.Enum):
+    planned = "planned"
+    building = "building"
+    operating = "operating"
+
+
 class Workspace(Base):
     __tablename__ = "workspaces"
 
@@ -47,7 +61,8 @@ class Workspace(Base):
 
 
 class Unit(Base):
-    """A selling point: a kiosk, tea house, shop, online store."""
+    """One MAMAL structure: an independent business with its own public page,
+    shop, staff, accounting and investors (tea house, café, village unit, lodge)."""
 
     __tablename__ = "units"
 
@@ -58,8 +73,90 @@ class Unit(Base):
     daily_target: Mapped[int] = mapped_column(Integer, default=0)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
 
+    # Public identity on mamalco.com: /s/<code>
+    code: Mapped[str | None] = mapped_column(String(16), unique=True, nullable=True)
+    category: Mapped[Category] = mapped_column(Enum(Category), default=Category.other)
+    branch: Mapped[str] = mapped_column(String(100), default="")  # چای‌خانه، کافه، لبنیات، ...
+    tagline: Mapped[str] = mapped_column(String(300), default="")
+    description: Mapped[str] = mapped_column(Text, default="")
+    address: Mapped[str] = mapped_column(String(300), default="")
+    latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    phone: Mapped[str] = mapped_column(String(40), default="")
+    status: Mapped[StructureStatus] = mapped_column(
+        Enum(StructureStatus), default=StructureStatus.planned
+    )
+    # Shown on the public site only when this is set AND it has GPS and a photo.
+    is_public: Mapped[bool] = mapped_column(Boolean, default=False)
+    open_for_investment: Mapped[bool] = mapped_column(Boolean, default=True)
+    open_for_rent: Mapped[bool] = mapped_column(Boolean, default=True)
+    open_for_jobs: Mapped[bool] = mapped_column(Boolean, default=True)
+    build_start_date: Mapped[dt.date | None] = mapped_column(Date, nullable=True)
+    build_days: Mapped[int] = mapped_column(Integer, default=45)
+
     workspace: Mapped[Workspace] = relationship(back_populates="units")
     reports: Mapped[list[DailyReport]] = relationship(back_populates="unit")
+    photos: Mapped[list[StructurePhoto]] = relationship(
+        back_populates="unit", order_by="StructurePhoto.sort_order, StructurePhoto.id"
+    )
+    budget_lines: Mapped[list[BudgetLine]] = relationship(
+        back_populates="unit", order_by="BudgetLine.sort_order, BudgetLine.id"
+    )
+    products: Mapped[list[Product]] = relationship(
+        back_populates="unit", order_by="Product.sort_order, Product.id"
+    )
+
+    @property
+    def has_location(self) -> bool:
+        return self.latitude is not None and self.longitude is not None
+
+    @property
+    def is_listed(self) -> bool:
+        """Visible on the public site."""
+        return bool(self.is_public and self.active and self.code and self.has_location and self.photos)
+
+    @property
+    def budget_total(self) -> int:
+        return sum(b.amount for b in self.budget_lines)
+
+    @property
+    def build_end_date(self) -> dt.date | None:
+        if not self.build_start_date:
+            return None
+        return self.build_start_date + dt.timedelta(days=self.build_days)
+
+    def build_progress(self, today: dt.date) -> int | None:
+        if not self.build_start_date or not self.build_days:
+            return None
+        elapsed = (today - self.build_start_date).days
+        return max(0, min(100, round(100 * elapsed / self.build_days)))
+
+
+class StructurePhoto(Base):
+    __tablename__ = "structure_photos"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    unit_id: Mapped[int] = mapped_column(ForeignKey("units.id"))
+    stored_name: Mapped[str] = mapped_column(String(255), unique=True)
+    content_type: Mapped[str] = mapped_column(String(100))
+    caption: Mapped[str] = mapped_column(String(300), default="")
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+
+    unit: Mapped[Unit] = relationship(back_populates="photos")
+
+
+class BudgetLine(Base):
+    """Cost line of building a structure up to opening (toman)."""
+
+    __tablename__ = "budget_lines"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    unit_id: Mapped[int] = mapped_column(ForeignKey("units.id"))
+    item: Mapped[str] = mapped_column(String(200))
+    amount: Mapped[int] = mapped_column(Integer, default=0)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+
+    unit: Mapped[Unit] = relationship(back_populates="budget_lines")
 
 
 class User(Base):
@@ -83,6 +180,8 @@ class Membership(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     workspace_id: Mapped[int] = mapped_column(ForeignKey("workspaces.id"))
     role: Mapped[Role] = mapped_column(Enum(Role))
+    # When set, the user only sees this one structure inside the workspace.
+    unit_id: Mapped[int | None] = mapped_column(ForeignKey("units.id"), nullable=True)
 
     user: Mapped[User] = relationship(back_populates="memberships")
     workspace: Mapped[Workspace] = relationship(back_populates="memberships")
@@ -152,6 +251,7 @@ class StructureTier(Base):
     __tablename__ = "structure_tiers"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    category: Mapped[Category] = mapped_column(Enum(Category), default=Category.other)
     name: Mapped[str] = mapped_column(String(200))
     examples: Mapped[str] = mapped_column(Text, default="")
     includes: Mapped[str] = mapped_column(Text, default="")
@@ -212,6 +312,11 @@ class PartnershipContract(Base):
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, server_default=func.now())
 
     unit: Mapped[Unit] = relationship()
+    payouts: Mapped[list[Payout]] = relationship(order_by="Payout.paid_on, Payout.id")
+
+    @property
+    def paid_total(self) -> int:
+        return sum(p.amount for p in self.payouts)
 
     @property
     def capital(self) -> int:
@@ -249,3 +354,186 @@ class MonthlyCost(Base):
             self.salaries + self.taxes + self.utilities + self.depreciation
             + self.advertising + self.other
         )
+
+
+# ------------------------------------------------------------------ public cases
+
+
+class CaseKind(str, enum.Enum):
+    invest = "invest"
+    rent = "rent"
+    job = "job"
+    general = "general"
+
+
+class CaseStatus(str, enum.Enum):
+    new = "new"
+    contacted = "contacted"
+    qualified = "qualified"
+    rejected = "rejected"
+    converted = "converted"
+
+
+class Application(Base):
+    """An inbound request from the public site (investor, renter, job seeker).
+
+    Deliberately no national ID / bank fields: documents are collected later
+    into a restricted Drive folder.
+    """
+
+    __tablename__ = "applications"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    kind: Mapped[CaseKind] = mapped_column(Enum(CaseKind))
+    unit_id: Mapped[int | None] = mapped_column(ForeignKey("units.id"), nullable=True)
+    category: Mapped[Category | None] = mapped_column(Enum(Category), nullable=True)
+    full_name: Mapped[str] = mapped_column(String(200))
+    phone: Mapped[str] = mapped_column(String(40))
+    email: Mapped[str] = mapped_column(String(200), default="")
+    city: Mapped[str] = mapped_column(String(100), default="")
+    message: Mapped[str] = mapped_column(Text, default="")
+    # invest
+    cash_amount: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    cheque_amount: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # job / rent
+    desired_role: Mapped[str] = mapped_column(String(200), default="")
+    experience: Mapped[str] = mapped_column(Text, default="")
+
+    status: Mapped[CaseStatus] = mapped_column(Enum(CaseStatus), default=CaseStatus.new)
+    rating: Mapped[str] = mapped_column(String(1), default="")  # A-D
+    internal_notes: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, server_default=func.now())
+
+    unit: Mapped[Unit | None] = relationship()
+
+    @property
+    def case_id(self) -> str:
+        year = self.created_at.year if self.created_at else dt.date.today().year
+        return f"MC-{year}-{self.id:04d}"
+
+
+# ------------------------------------------------------------------------ shop
+
+
+class Product(Base):
+    """Something a structure sells, in person and/or online, retail and/or wholesale."""
+
+    __tablename__ = "products"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    unit_id: Mapped[int] = mapped_column(ForeignKey("units.id"))
+    name: Mapped[str] = mapped_column(String(200))
+    description: Mapped[str] = mapped_column(Text, default="")
+    unit_label: Mapped[str] = mapped_column(String(50), default="عدد")  # کیلو، بسته، لیوان
+    retail_price: Mapped[int] = mapped_column(Integer, default=0)
+    wholesale_price: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    wholesale_min_qty: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    sold_online: Mapped[bool] = mapped_column(Boolean, default=True)
+    served_on_site: Mapped[bool] = mapped_column(Boolean, default=False)  # drink/eat there
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+
+    unit: Mapped[Unit] = relationship(back_populates="products")
+
+    def price_for(self, qty: int) -> int:
+        if self.wholesale_price and self.wholesale_min_qty and qty >= self.wholesale_min_qty:
+            return self.wholesale_price
+        return self.retail_price
+
+
+class OrderStatus(str, enum.Enum):
+    new = "new"
+    confirmed = "confirmed"
+    delivered = "delivered"
+    cancelled = "cancelled"
+
+
+class Order(Base):
+    """Online order; payment is confirmed by phone/WhatsApp until a gateway is added."""
+
+    __tablename__ = "orders"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    unit_id: Mapped[int] = mapped_column(ForeignKey("units.id"))
+    full_name: Mapped[str] = mapped_column(String(200))
+    phone: Mapped[str] = mapped_column(String(40))
+    address: Mapped[str] = mapped_column(Text, default="")
+    delivery: Mapped[bool] = mapped_column(Boolean, default=False)
+    note: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[OrderStatus] = mapped_column(Enum(OrderStatus), default=OrderStatus.new)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, server_default=func.now())
+
+    unit: Mapped[Unit] = relationship()
+    items: Mapped[list[OrderItem]] = relationship(back_populates="order", order_by="OrderItem.id")
+
+    @property
+    def total(self) -> int:
+        return sum(i.line_total for i in self.items)
+
+    @property
+    def order_code(self) -> str:
+        return f"MO-{self.id:05d}"
+
+    @property
+    def is_wholesale(self) -> bool:
+        return any(i.wholesale for i in self.items)
+
+
+class OrderItem(Base):
+    __tablename__ = "order_items"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    order_id: Mapped[int] = mapped_column(ForeignKey("orders.id"))
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id"))
+    product_name: Mapped[str] = mapped_column(String(200))
+    unit_label: Mapped[str] = mapped_column(String(50))
+    qty: Mapped[int] = mapped_column(Integer)
+    unit_price: Mapped[int] = mapped_column(Integer)
+    wholesale: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    order: Mapped[Order] = relationship(back_populates="items")
+
+    @property
+    def line_total(self) -> int:
+        return self.qty * self.unit_price
+
+
+# ----------------------------------------------------------------------- staff
+
+
+class RaiseRule(str, enum.Enum):
+    six_months = "six_months"  # +3M toman every 6 months
+    yearly = "yearly"  # +5M toman every 12 months
+
+
+class Employee(Base):
+    __tablename__ = "employees"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    unit_id: Mapped[int] = mapped_column(ForeignKey("units.id"))
+    full_name: Mapped[str] = mapped_column(String(200))
+    phone: Mapped[str] = mapped_column(String(40), default="")
+    job_title: Mapped[str] = mapped_column(String(200), default="")
+    start_date: Mapped[dt.date] = mapped_column(Date)
+    contract_months: Mapped[int] = mapped_column(Integer, default=12)
+    base_salary: Mapped[int] = mapped_column(Integer)
+    raise_rule: Mapped[RaiseRule] = mapped_column(Enum(RaiseRule), default=RaiseRule.yearly)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    notes: Mapped[str] = mapped_column(Text, default="")
+
+    unit: Mapped[Unit] = relationship()
+
+
+# -------------------------------------------------------------- investor payouts
+
+
+class Payout(Base):
+    """Money actually paid to an investor under a partnership contract."""
+
+    __tablename__ = "payouts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    contract_id: Mapped[int] = mapped_column(ForeignKey("partnership_contracts.id"))
+    paid_on: Mapped[dt.date] = mapped_column(Date)
+    amount: Mapped[int] = mapped_column(Integer)
+    note: Mapped[str] = mapped_column(String(300), default="")

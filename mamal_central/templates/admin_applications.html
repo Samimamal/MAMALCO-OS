@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}درخواست‌ها — {{ workspace.name }}{% endblock %}
+{% block content %}
+{% include "_wsnav.html" %}
+<h1>درخواست‌های سایت</h1>
+<form method="get" class="pickers">
+  <label>نوع
+    <select name="kind" onchange="this.form.submit()">
+      <option value="">همه</option>
+      {% for k, label in case_kind_labels.items() %}<option value="{{ k }}" {{ 'selected' if f_kind == k }}>{{ label }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>وضعیت
+    <select name="status" onchange="this.form.submit()">
+      <option value="">همه</option>
+      {% for st in statuses %}<option value="{{ st.value }}" {{ 'selected' if f_status == st.value }}>{{ case_status_labels[st.value] }}</option>{% endfor %}
+    </select>
+  </label>
+</form>
+{% for c in cases %}
+<section class="card" id="case-{{ c.id }}">
+  <div class="unit-head">
+    <h2>{{ c.case_id }} · {{ case_kind_labels[c.kind.value] }}</h2>
+    <span class="tag {{ 'warn' if c.status.value == 'new' else '' }}">{{ case_status_labels[c.status.value] }}</span>
+  </div>
+  <p>
+    <strong>{{ c.full_name }}</strong> · <a href="tel:{{ c.phone }}" dir="ltr">{{ c.phone }}</a>
+    {% if c.email %} · <span dir="ltr">{{ c.email }}</span>{% endif %}{% if c.city %} · {{ c.city }}{% endif %}
+  </p>
+  <p class="muted">
+    {% if c.unit %}سازه: {{ c.unit.code }} · {{ c.unit.name }}{% elif c.category %}{{ category_labels[c.category.value] }} (عمومی){% endif %}
+    · {{ c.created_at.date()|jdate }}
+  </p>
+  {% if c.cash_amount %}
+  <p>نقد: <strong>{{ c.cash_amount|money }}</strong>{% if c.cheque_amount %} · چک: {{ c.cheque_amount|money }}{% endif %} تومان
+    {% if c.id in below_min %}<span class="tag bad">کمتر از حداقل نقد</span>{% endif %}
+  </p>
+  {% endif %}
+  {% if c.desired_role %}<p>{{ c.desired_role }}</p>{% endif %}
+  {% if c.experience %}<p class="muted">{{ c.experience }}</p>{% endif %}
+  {% if c.message %}<p>{{ c.message }}</p>{% endif %}
+  <form method="post" action="/w/{{ workspace.slug }}/applications/{{ c.id }}" class="inline-form three">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <select name="status">{% for st in statuses %}<option value="{{ st.value }}" {{ 'selected' if c.status == st }}>{{ case_status_labels[st.value] }}</option>{% endfor %}</select>
+    <select name="rating"><option value="">رتبه</option>{% for r in 'ABCD' %}<option {{ 'selected' if c.rating == r }}>{{ r }}</option>{% endfor %}</select>
+    <button type="submit">ذخیره</button>
+    <textarea name="internal_notes" rows="2" placeholder="یادداشت داخلی">{{ c.internal_notes }}</textarea>
+  </form>
+</section>
+{% else %}
+<p class="muted">درخواستی نیست.</p>
+{% endfor %}
+{% endblock %}

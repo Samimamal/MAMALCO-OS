@@ -8,7 +8,7 @@
 </head>
 <body>
   <header class="topbar">
-    <a class="brand" href="/">MAMAL <span>Central</span></a>
+    <a class="brand" href="{{ '/admin' if user else '/' }}">MAMAL <span>Central</span></a>
     {% if user %}
     <form method="post" action="/logout" class="logout">
       <input type="hidden" name="csrf" value="{{ csrf }}">

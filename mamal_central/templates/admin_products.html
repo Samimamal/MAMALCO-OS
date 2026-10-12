@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}محصولات — {{ unit.name }}{% endblock %}
+{% block content %}
+{% include "_wsnav.html" %}
+<h1>محصولات</h1>
+<form method="get" class="pickers">
+  <label>سازه
+    <select name="unit_id" onchange="this.form.submit()">
+      {% for u in units %}<option value="{{ u.id }}" {{ 'selected' if u.id == unit.id }}>{{ u.code or '' }} {{ u.name }}</option>{% endfor %}
+    </select>
+  </label>
+</form>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>محصول</th><th>خرده</th><th>عمده</th><th>کانال</th><th></th></tr></thead>
+  <tbody>
+  {% for p in unit.products %}
+  <tr class="{{ 'empty' if not p.active }}">
+    <td>{{ p.name }} <span class="muted">/ {{ p.unit_label }}</span></td>
+    <td class="num">{{ p.retail_price|money }}</td>
+    <td class="num">{% if p.wholesale_price %}{{ p.wholesale_price|money }} <span class="muted">از {{ p.wholesale_min_qty|fa }}</span>{% else %}—{% endif %}</td>
+    <td>{% if p.sold_online %}<span class="tag good">آنلاین</span>{% endif %}<span class="tag">حضوری</span>{% if p.served_on_site %}<span class="tag">سرو در محل</span>{% endif %}</td>
+    <td><a href="?unit_id={{ unit.id }}&edit={{ p.id }}#form">ویرایش</a></td>
+  </tr>
+  {% else %}
+  <tr><td colspan="5" class="muted">هنوز محصولی ثبت نشده.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% set e = editing %}
+<form method="post" action="/w/{{ workspace.slug }}/products" class="card stack" id="form">
+  <h2>{{ 'ویرایش ' ~ e.name if e else 'محصول جدید' }}</h2>
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="unit_id" value="{{ unit.id }}">
+  {% if e %}<input type="hidden" name="product_id" value="{{ e.id }}">{% endif %}
+  <label>نام<input name="name" required placeholder="چای سیاه ممتاز" value="{{ e.name if e else '' }}"></label>
+  <label>توضیح<input name="description" value="{{ e.description if e else '' }}"></label>
+  <div class="grid2">
+    <label>واحد<input name="unit_label" placeholder="کیلو، بسته، لیوان" value="{{ e.unit_label if e else 'عدد' }}"></label>
+    <label>قیمت خرده (تومان)<input name="retail_price" type="number" min="0" required inputmode="numeric" value="{{ e.retail_price if e else '' }}"></label>
+    <label>قیمت عمده (تومان)<input name="wholesale_price" type="number" min="0" inputmode="numeric" value="{{ e.wholesale_price if e and e.wholesale_price else '' }}"></label>
+    <label>حداقل تعداد عمده<input name="wholesale_min_qty" type="number" min="1" inputmode="numeric" value="{{ e.wholesale_min_qty if e and e.wholesale_min_qty else '' }}"></label>
+  </div>
+  <label class="check"><input type="checkbox" name="sold_online" value="true" {{ 'checked' if not e or e.sold_online }}> فروش آنلاین</label>
+  <label class="check"><input type="checkbox" name="served_on_site" value="true" {{ 'checked' if e and e.served_on_site }}> سرو در محل (نشستن و نوشیدن/خوردن همان‌جا)</label>
+  <label class="check"><input type="checkbox" name="active" value="true" {{ 'checked' if not e or e.active }}> فعال</label>
+  <button type="submit" class="primary">ذخیره</button>
+</form>
+{% endblock %}

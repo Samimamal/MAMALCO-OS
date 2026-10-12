@@ -1,0 +1,11 @@
+{% extends "public/_base.html" %}
+{% block title %}ثبت شد — MAMAL{% endblock %}
+{% block content %}
+<section class="card narrow center">
+  <h1>{{ 'سفارش شما ثبت شد' if is_order else 'درخواست شما ثبت شد' }}</h1>
+  <p>کد پیگیری: <strong dir="ltr">{{ ref }}</strong></p>
+  <p class="muted">{{ 'برای تأیید سفارش و هماهنگی پرداخت با شما تماس می‌گیریم.' if is_order else 'همکاران مامال به‌زودی با شما تماس می‌گیرند.' }}</p>
+  {% if phone %}<p><a class="button" href="tel:{{ phone }}" dir="ltr">{{ phone }}</a></p>{% endif %}
+  <a class="button primary" href="/">بازگشت به صفحه‌ی اصلی</a>
+</section>
+{% endblock %}

@@ -1,9 +1,14 @@
 {% if role != 'staff' %}
 <nav class="wsnav">
   <a href="/w/{{ workspace.slug }}" class="{{ 'on' if active == 'dash' }}">داشبورد</a>
+  <a href="/w/{{ workspace.slug }}/structures" class="{{ 'on' if active == 'structures' }}">سازه‌ها</a>
   <a href="/w/{{ workspace.slug }}/report" class="{{ 'on' if active == 'report' }}">گزارش روزانه</a>
-  <a href="/w/{{ workspace.slug }}/costs" class="{{ 'on' if active == 'costs' }}">هزینه‌های ماهانه</a>
+  <a href="/w/{{ workspace.slug }}/orders" class="{{ 'on' if active == 'orders' }}">سفارش‌ها</a>
+  <a href="/w/{{ workspace.slug }}/products" class="{{ 'on' if active == 'products' }}">محصولات</a>
+  <a href="/w/{{ workspace.slug }}/applications" class="{{ 'on' if active == 'applications' }}">درخواست‌ها</a>
+  <a href="/w/{{ workspace.slug }}/staff" class="{{ 'on' if active == 'staff' }}">کارکنان</a>
+  <a href="/w/{{ workspace.slug }}/costs" class="{{ 'on' if active == 'costs' }}">هزینه‌ها</a>
   <a href="/w/{{ workspace.slug }}/contracts" class="{{ 'on' if active == 'contracts' }}">قراردادها</a>
-  <a href="/catalog">کاتالوگ سازه‌ها</a>
+  <a href="/catalog">کاتالوگ</a>
 </nav>
 {% endif %}
