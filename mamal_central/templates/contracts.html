@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}قراردادها — {{ workspace.name }}{% endblock %}
+{% block content %}
+{% set active = 'contracts' %}{% include "_wsnav.html" %}
+<div class="page-head">
+  <h1>قراردادهای مشارکت</h1>
+  {% if user.is_admin %}<a class="button primary" href="/w/{{ workspace.slug }}/contracts/new">قرارداد جدید</a>{% endif %}
+</div>
+{% for s in statements %}
+<a class="card tile contract" href="/w/{{ workspace.slug }}/contracts/{{ s.contract.id }}">
+  <div class="unit-head">
+    <h2>{{ s.contract.code }} · {{ s.contract.title }}</h2>
+    <span class="tag {{ 'good' if s.contract.status.value == 'active' else 'warn' }}">{{ status_labels[s.contract.status.value] }}</span>
+  </div>
+  <span class="muted">{{ s.contract.investor_name }} · {{ s.contract.unit.name }} · سرمایه {{ s.contract.capital|money }}</span>
+  <div class="meter"><span style="width: {{ s.recovered_pct }}%"></span></div>
+  <span class="muted">{{ s.recovered_pct|fa }}٪ سرمایه برگشته</span>
+</a>
+{% else %}
+<p class="muted">هنوز قراردادی ثبت نشده.</p>
+{% endfor %}
+{% endblock %}

@@ -144,3 +144,108 @@ class Attachment(Base):
     uploaded_at: Mapped[dt.datetime] = mapped_column(DateTime, server_default=func.now())
 
     report: Mapped[DailyReport] = relationship(back_populates="attachments")
+
+
+class StructureTier(Base):
+    """Group-level price list for MAMAL structures (toman, all-in to launch)."""
+
+    __tablename__ = "structure_tiers"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(200))
+    examples: Mapped[str] = mapped_column(Text, default="")
+    includes: Mapped[str] = mapped_column(Text, default="")
+    min_price: Mapped[int] = mapped_column(Integer)
+    max_price: Mapped[int] = mapped_column(Integer)
+    # Prices move with inflation; the page shows how old they are.
+    price_updated_on: Mapped[dt.date] = mapped_column(Date)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class ContractStatus(str, enum.Enum):
+    draft = "draft"
+    active = "active"
+    ended = "ended"
+
+
+class PartnershipContract(Base):
+    """Civil-partnership investment in one unit (template: Coffee Bus 03).
+
+    Defaults mirror the template: 3-year term extendable to 5, 60/40 split
+    (investor/manager) until the capital is returned, 30/70 after, a 10%
+    management fee on gross sales taken before the split, early-exit
+    penalties of 7/5/3% by contract year, and a buy-out value of
+    6-month average net profit x 2 x investor share.
+
+    Investor national ID numbers are deliberately not stored here; keep
+    identity documents in the restricted Drive folder linked in documents_url.
+    """
+
+    __tablename__ = "partnership_contracts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    workspace_id: Mapped[int] = mapped_column(ForeignKey("workspaces.id"))
+    unit_id: Mapped[int] = mapped_column(ForeignKey("units.id"))
+    code: Mapped[str] = mapped_column(String(32), unique=True)
+    title: Mapped[str] = mapped_column(String(200))
+    investor_name: Mapped[str] = mapped_column(String(200))
+    investor_contact: Mapped[str] = mapped_column(String(200), default="")
+
+    capital_structure: Mapped[int] = mapped_column(Integer, default=0)
+    capital_launch: Mapped[int] = mapped_column(Integer, default=0)
+    start_date: Mapped[dt.date | None] = mapped_column(Date, nullable=True)
+    term_years: Mapped[int] = mapped_column(Integer, default=3)
+    max_term_years: Mapped[int] = mapped_column(Integer, default=5)
+
+    investor_pct_before: Mapped[int] = mapped_column(Integer, default=60)
+    investor_pct_after: Mapped[int] = mapped_column(Integer, default=30)
+    management_fee_pct: Mapped[int] = mapped_column(Integer, default=10)
+    # Comma-separated penalty % for exit in contract year 1, 2, 3, ...
+    exit_penalties: Mapped[str] = mapped_column(String(64), default="7,5,3")
+    buyout_multiplier: Mapped[int] = mapped_column(Integer, default=2)
+
+    status: Mapped[ContractStatus] = mapped_column(
+        Enum(ContractStatus), default=ContractStatus.draft
+    )
+    documents_url: Mapped[str] = mapped_column(String(500), default="")
+    notes: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, server_default=func.now())
+
+    unit: Mapped[Unit] = relationship()
+
+    @property
+    def capital(self) -> int:
+        return self.capital_structure + self.capital_launch
+
+    @property
+    def penalty_list(self) -> list[int]:
+        return [int(p) for p in self.exit_penalties.split(",") if p.strip()]
+
+
+class MonthlyCost(Base):
+    """A unit's operating costs for one Jalali month (toman).
+
+    Raw materials come from the daily reports' purchases, so they are not here.
+    """
+
+    __tablename__ = "monthly_costs"
+    __table_args__ = (UniqueConstraint("unit_id", "jalali_year", "jalali_month"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    unit_id: Mapped[int] = mapped_column(ForeignKey("units.id"))
+    jalali_year: Mapped[int] = mapped_column(Integer)
+    jalali_month: Mapped[int] = mapped_column(Integer)
+    salaries: Mapped[int] = mapped_column(Integer, default=0)
+    taxes: Mapped[int] = mapped_column(Integer, default=0)
+    utilities: Mapped[int] = mapped_column(Integer, default=0)  # water, power, gas, terminal charge, services
+    depreciation: Mapped[int] = mapped_column(Integer, default=0)
+    advertising: Mapped[int] = mapped_column(Integer, default=0)
+    other: Mapped[int] = mapped_column(Integer, default=0)
+    notes: Mapped[str] = mapped_column(Text, default="")
+
+    @property
+    def total(self) -> int:
+        return (
+            self.salaries + self.taxes + self.utilities + self.depreciation
+            + self.advertising + self.other
+        )

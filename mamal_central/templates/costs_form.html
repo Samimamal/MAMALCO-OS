@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}هزینه‌های ماهانه — {{ unit.name }}{% endblock %}
+{% block content %}
+{% set active = 'costs' %}{% include "_wsnav.html" %}
+<h1>هزینه‌های ماهانه</h1>
+<p class="muted">خرید مواد اولیه از گزارش‌های روزانه جمع می‌شود و اینجا وارد نمی‌شود. این اعداد مبنای سود خالص و سهم سرمایه‌گذار است.</p>
+
+<form method="get" class="pickers">
+  <label>واحد
+    <select name="unit_id" onchange="this.form.submit()">
+      {% for u in units %}<option value="{{ u.id }}" {{ 'selected' if u.id == unit.id }}>{{ u.name }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>ماه
+    <select name="month" onchange="this.form.submit()">
+      {% for m in months %}<option value="{{ m[0] }}-{{ m[1] }}" {{ 'selected' if m == ym }}>{{ m|jmonth }}</option>{% endfor %}
+    </select>
+  </label>
+</form>
+
+{% if saved %}<p class="alert success">هزینه‌ها ذخیره شد.</p>{% endif %}
+
+<form method="post" action="/w/{{ workspace.slug }}/costs" class="card stack">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="unit_id" value="{{ unit.id }}">
+  <input type="hidden" name="month" value="{{ ym[0] }}-{{ ym[1] }}">
+  <fieldset>
+    <legend>{{ unit.name }} — {{ ym|jmonth }} (تومان)</legend>
+    <label>حقوق و مزایا<input name="salaries" type="number" min="0" inputmode="numeric" value="{{ cost.salaries if cost else '' }}" class="sale"></label>
+    <label>مالیات و عوارض<input name="taxes" type="number" min="0" inputmode="numeric" value="{{ cost.taxes if cost else '' }}" class="sale"></label>
+    <label>آب، برق، گاز، سوخت، شارژ ترمینال و خدمات<input name="utilities" type="number" min="0" inputmode="numeric" value="{{ cost.utilities if cost else '' }}" class="sale"></label>
+    <label>استهلاک تجهیزات<input name="depreciation" type="number" min="0" inputmode="numeric" value="{{ cost.depreciation if cost else '' }}" class="sale"></label>
+    <label>تبلیغات<input name="advertising" type="number" min="0" inputmode="numeric" value="{{ cost.advertising if cost else '' }}" class="sale"></label>
+    <label>سایر<input name="other" type="number" min="0" inputmode="numeric" value="{{ cost.other if cost else '' }}" class="sale"></label>
+    <p class="total">جمع هزینه‌ها: <strong id="total">۰</strong> تومان</p>
+    <label>توضیحات<textarea name="notes" rows="2">{{ cost.notes if cost else '' }}</textarea></label>
+  </fieldset>
+  <button type="submit" class="primary">ذخیره</button>
+</form>
+<script src="/static/sum.js"></script>
+{% endblock %}

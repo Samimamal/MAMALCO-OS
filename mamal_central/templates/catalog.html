@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}کاتالوگ سازه‌ها — MAMAL Central{% endblock %}
+{% block content %}
+<h1>کاتالوگ سازه‌های مامال</h1>
+<p class="muted">قیمت‌ها به تومان، شامل سازه، تجهیزات، مارکتینگ و راه‌اندازی تا بهره‌برداری. قیمت نهایی به اندازه، جنس، فضا، متریال و تورم بستگی دارد و باید هر هفته به‌روز شود.</p>
+{% for t in tiers %}
+<section class="card">
+  <div class="unit-head">
+    <h2>{{ t.name }}</h2>
+    <span class="price">{{ t.min_price|billions }} تا {{ t.max_price|billions }}</span>
+  </div>
+  {% if t.examples %}<p><span class="muted">نمونه‌ها:</span> {{ t.examples }}</p>{% endif %}
+  {% if t.includes %}<p><span class="muted">شامل:</span> {{ t.includes }}</p>{% endif %}
+  {% set age = (today - t.price_updated_on).days %}
+  <p class="{{ 'bad' if age > 7 else 'muted' }}">آخرین به‌روزرسانی قیمت: {{ t.price_updated_on|jdate }}{% if age > 7 %} ({{ age|fa }} روز پیش — قیمت را به‌روز کنید){% endif %}</p>
+  {% if user.is_admin %}
+  <details><summary>ویرایش قیمت</summary>
+  <form method="post" action="/catalog/{{ t.id }}" class="inline-form">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label>از (تومان)<input name="min_price" type="number" min="0" inputmode="numeric" value="{{ t.min_price }}"></label>
+    <label>تا (تومان)<input name="max_price" type="number" min="0" inputmode="numeric" value="{{ t.max_price }}"></label>
+    <button type="submit">ذخیره</button>
+  </form>
+  </details>
+  {% endif %}
+</section>
+{% else %}
+<p class="muted">کاتالوگ خالی است. با <code>python -m mamal_central.cli init-catalog</code> بسازید.</p>
+{% endfor %}
+{% endblock %}

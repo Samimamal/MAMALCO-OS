@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}{{ c.code }} — {{ c.title }}{% endblock %}
+{% block content %}
+{% set active = 'contracts' %}{% include "_wsnav.html" %}
+<div class="page-head">
+  <h1>{{ c.code }} · {{ c.title }}</h1>
+  {% if user.is_admin %}<a href="/w/{{ workspace.slug }}/contracts/{{ c.id }}/edit">ویرایش</a>{% endif %}
+</div>
+<p class="muted">
+  سرمایه‌گذار: {{ c.investor_name }} · واحد: {{ c.unit.name }} · {{ status_labels[c.status.value] }}
+  {% if c.documents_url %} · <a href="{{ c.documents_url }}" target="_blank" rel="noopener noreferrer">مدارک</a>{% endif %}
+</p>
+
+<div class="stats">
+  <div class="stat">
+    <span class="label">سرمایه</span>
+    <span class="value">{{ c.capital|money }}</span>
+    <span class="sub">سازه {{ c.capital_structure|money }} · راه‌اندازی {{ c.capital_launch|money }}</span>
+  </div>
+  <div class="stat">
+    <span class="label">برگشت سرمایه</span>
+    <span class="value">{{ s.recovered_pct|fa }}٪</span>
+    <div class="meter"><span style="width: {{ s.recovered_pct }}%"></span></div>
+    <span class="sub">مانده: {{ s.remaining_capital|money }}</span>
+  </div>
+  <div class="stat">
+    <span class="label">سهم فعلی سرمایه‌گذار / مدیر</span>
+    <span class="value">{{ s.current_investor_pct|fa }}٪ / {{ (100 - s.current_investor_pct)|fa }}٪</span>
+    <span class="sub">
+      {% if s.months_to_recover is none %}با روند فعلی برگشت سرمایه قابل پیش‌بینی نیست
+      {% elif s.months_to_recover == 0 %}سرمایه کامل برگشته
+      {% else %}برگشت کامل حدود {{ s.months_to_recover|fa }} ماه دیگر{% endif %}
+    </span>
+  </div>
+  <div class="stat">
+    <span class="label">مدت قرارداد</span>
+    {% if c.start_date %}
+    <span class="value">{{ c.start_date|jdate }} تا {{ s.end_date|jdate }}</span>
+    <span class="sub">{% if s.contract_year %}سال {{ s.contract_year|fa }} از {{ c.term_years|fa }}{% else %}هنوز شروع نشده{% endif %} · قابل تمدید تا {{ c.max_term_years|fa }} سال</span>
+    {% else %}
+    <span class="value">—</span><span class="sub">تاریخ شروع ثبت نشده</span>
+    {% endif %}
+  </div>
+</div>
+
+<section class="card">
+  <h2>اگر سرمایه‌گذار امروز خارج شود</h2>
+  <ul class="facts">
+    <li>ارزش سهم (ماده ۱۰): میانگین سود خالص ۶ ماه {{ s.avg_net_profit_6m|money }} × {{ c.buyout_multiplier|fa }} × {{ s.current_investor_pct|fa }}٪ = <strong>{{ s.buyout_value|money }}</strong> تومان</li>
+    {% if s.exit_penalty_pct is not none %}
+    <li>جریمه‌ی خروج پیش از برگشت سرمایه (سال {{ s.contract_year|fa }}): {{ s.exit_penalty_pct|fa }}٪ ≈ <strong>{{ s.exit_penalty_amount|money }}</strong> تومان <span class="muted">(فرض: درصد از سرمایه‌ی برنگشته)</span></li>
+    {% endif %}
+    <li class="muted">اعلام خروج حداقل ۶ ماه قبل، کتبی؛ پرداخت فقط از نقدینگی پروژه و حداکثر طی ۱۲ ماه.</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h2>صورت‌حساب ماهانه</h2>
+  <p class="muted">سود خالص = فروش − خرید مواد − هزینه‌های ماهانه − حق مدیریت {{ c.management_fee_pct|fa }}٪ فروش</p>
+  {% if not s.lines %}
+  <p class="muted">بعد از ثبت تاریخ شروع و اولین گزارش‌ها اینجا پر می‌شود.</p>
+  {% else %}
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>ماه</th><th>فروش</th><th>مواد</th><th>هزینه‌ها</th><th>حق مدیریت</th><th>سود خالص</th><th>سهم سرمایه‌گذار</th><th>سهم مدیر</th><th>جمع دریافتی سرمایه‌گذار</th></tr></thead>
+    <tbody>
+    {% for l in s.lines %}
+      <tr>
+        <td>{{ (l.input.year, l.input.month)|jmonth }}
+          {% if l.input.in_progress %}<span class="tag warn">در جریان</span>{% endif %}
+          {% if not l.input.has_costs %}<span class="tag bad">بدون هزینه</span>{% endif %}
+        </td>
+        <td class="num">{{ l.input.revenue|money }}</td>
+        <td class="num">{{ l.input.materials|money }}</td>
+        <td class="num">{{ l.input.operating|money }}</td>
+        <td class="num">{{ l.management_fee|money }}</td>
+        <td class="num {{ 'bad' if l.net_profit < 0 }}">{{ l.net_profit|money if l.net_profit >= 0 else '−' ~ (-l.net_profit)|money }}</td>
+        <td class="num">{{ l.investor_share|money }}</td>
+        <td class="num">{{ l.manager_share|money }}</td>
+        <td class="num {{ 'good' if l.recovered }}">{{ l.investor_cumulative|money }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr><th>جمع</th><td colspan="4"></td><td class="num">{{ s.net_profit_total|money }}</td><td class="num">{{ s.investor_total|money }}</td><td class="num">{{ s.manager_total|money }}</td><td></td></tr>
+    </tfoot>
+  </table>
+  </div>
+  <p class="muted">ماه «بدون هزینه» یعنی هزینه‌های ماهانه‌اش ثبت نشده و سود خالص آن بیش از واقع نشان داده می‌شود.</p>
+  {% endif %}
+</section>
+
+{% if c.notes %}<section class="card"><h2>یادداشت</h2><p>{{ c.notes }}</p></section>{% endif %}
+{% endblock %}

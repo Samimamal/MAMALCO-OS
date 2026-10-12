@@ -15,6 +15,7 @@ mamal_central/
   db.py         engine + session factory
   security.py   scrypt password hashes, CSRF tokens
   dashboard.py  per-unit scoreboard
+  settlement.py monthly investor statement for partnership contracts
   jalali.py     Jalali dates and Persian digits for display
   main.py       routes
   cli.py        admin commands
@@ -32,7 +33,13 @@ mamal_central/
 - Staff can only write today and yesterday; nobody can write future dates.
 - Uploads are whitelisted by extension, size-capped, stored under random names and served only to members of the workspace.
 
+## Partnership contracts
+- `PartnershipContract` holds the terms of the Coffee Bus 03 template (split before/after capital recovery, management fee, exit penalties, buy-out multiplier).
+- `MonthlyCost` holds a unit's operating costs per Jalali month; materials come from daily-report purchases.
+- `settlement.compute_statement` is pure (no DB) and unit-tested; `load_month_inputs` gathers the month inputs.
+- Investor national IDs are not stored; `documents_url` points to the restricted Drive folder.
+
 ## Next modules
-1. Finance: expenses, income, payments, linked to contracts (C-00x) — replaces *MAMALCO Master Sheet*.
+1. Actual payouts to investors, other income/expenses — replaces *MAMALCO Master Sheet*.
 2. CRM cases (Case ID) — replaces *MAMALCO Automation Platform* sheet.
 3. Google Sheets export of daily reports, then n8n/Make webhooks.

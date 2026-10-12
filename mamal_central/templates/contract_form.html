@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}{{ 'ویرایش' if contract else 'قرارداد جدید' }} — MAMAL Central{% endblock %}
+{% block content %}
+{% set active = 'contracts' %}{% include "_wsnav.html" %}
+<h1>{{ 'ویرایش قرارداد ' ~ contract.code if contract else 'قرارداد مشارکت جدید' }}</h1>
+<p class="muted">پیش‌فرض‌ها از الگوی قرارداد «اتوبوس کافه مامال ۰۳» است. کد ملی و مدارک هویتی را اینجا وارد نکنید؛ در پوشه‌ی محدود Drive بگذارید و لینکش را وارد کنید.</p>
+<form method="post" action="/w/{{ workspace.slug }}/contracts/save" class="card stack">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  {% if contract %}<input type="hidden" name="contract_id" value="{{ contract.id }}">{% endif %}
+  <fieldset>
+    <legend>مشخصات</legend>
+    <label>کد قرارداد<input name="code" dir="ltr" required placeholder="C-007" value="{{ contract.code if contract else '' }}"></label>
+    <label>عنوان پروژه<input name="title" required placeholder="اتوبوس کافه مامال ۰۳" value="{{ contract.title if contract else '' }}"></label>
+    <label>واحد
+      <select name="unit_id">
+        {% for u in units %}<option value="{{ u.id }}" {{ 'selected' if contract and contract.unit_id == u.id }}>{{ u.name }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>وضعیت
+      <select name="status">
+        {% for st in statuses %}<option value="{{ st.value }}" {{ 'selected' if contract and contract.status == st }}>{{ status_labels[st.value] }}</option>{% endfor %}
+      </select>
+    </label>
+  </fieldset>
+  <fieldset>
+    <legend>سرمایه‌گذار</legend>
+    <label>نام<input name="investor_name" required value="{{ contract.investor_name if contract else '' }}"></label>
+    <label>تماس (تلفن یا ایمیل)<input name="investor_contact" dir="ltr" value="{{ contract.investor_contact if contract else '' }}"></label>
+  </fieldset>
+  <fieldset>
+    <legend>سرمایه (تومان)</legend>
+    <label>خرید و تجهیز سازه<input name="capital_structure" type="number" min="0" inputmode="numeric" class="sale" value="{{ contract.capital_structure if contract else '' }}"></label>
+    <label>تکمیل، راه‌اندازی، مجوزها و سرمایه در گردش<input name="capital_launch" type="number" min="0" inputmode="numeric" class="sale" value="{{ contract.capital_launch if contract else '' }}"></label>
+    <p class="total">جمع سرمایه: <strong id="total">۰</strong> تومان</p>
+  </fieldset>
+  <fieldset>
+    <legend>شرایط</legend>
+    <label>تاریخ شروع<input name="start_date" type="date" value="{{ contract.start_date.isoformat() if contract and contract.start_date else '' }}"></label>
+    <div class="grid2">
+      <label>مدت (سال)<input name="term_years" type="number" min="1" value="{{ contract.term_years if contract else 3 }}"></label>
+      <label>سقف تمدید (سال)<input name="max_term_years" type="number" min="1" value="{{ contract.max_term_years if contract else 5 }}"></label>
+      <label>سهم سرمایه‌گذار تا برگشت سرمایه ٪<input name="investor_pct_before" type="number" min="1" max="100" value="{{ contract.investor_pct_before if contract else 60 }}"></label>
+      <label>سهم سرمایه‌گذار بعد از برگشت ٪<input name="investor_pct_after" type="number" min="0" max="100" value="{{ contract.investor_pct_after if contract else 30 }}"></label>
+      <label>حق مدیریت (٪ فروش ناخالص)<input name="management_fee_pct" type="number" min="0" max="100" value="{{ contract.management_fee_pct if contract else 10 }}"></label>
+      <label>ضریب ارزش خروج<input name="buyout_multiplier" type="number" min="0" value="{{ contract.buyout_multiplier if contract else 2 }}"></label>
+    </div>
+    <label>جریمه‌ی خروج زودهنگام به تفکیک سال ٪ (با کاما)<input name="exit_penalties" dir="ltr" value="{{ contract.exit_penalties if contract else '7,5,3' }}"></label>
+    <label>لینک پوشه‌ی مدارک در Drive<input name="documents_url" dir="ltr" type="url" placeholder="https://drive.google.com/..." value="{{ contract.documents_url if contract else '' }}"></label>
+    <label>یادداشت<textarea name="notes" rows="3">{{ contract.notes if contract else '' }}</textarea></label>
+  </fieldset>
+  <button type="submit" class="primary">ذخیره قرارداد</button>
+</form>
+<script src="/static/sum.js"></script>
+{% endblock %}

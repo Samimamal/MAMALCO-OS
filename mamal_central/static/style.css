@@ -109,3 +109,20 @@ td:last-child { white-space: normal; }
   .opt { display: none; }
   th, td { padding: .45rem .3rem; }
 }
+.wsnav { display: flex; gap: .25rem; overflow-x: auto; margin: 0 -4px 12px; padding-bottom: 4px; }
+.wsnav a { white-space: nowrap; padding: .35rem .75rem; border-radius: 999px; text-decoration: none; color: var(--muted); border: 1px solid var(--border); font-size: .9rem; }
+.wsnav a.on { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+.price { font-weight: 700; color: var(--accent); }
+.inline-form { display: grid; grid-template-columns: 1fr 1fr auto; gap: .5rem; align-items: end; }
+.inline-form button { width: auto; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+.meter { height: 8px; background: var(--border); border-radius: 999px; overflow: hidden; margin: .4rem 0; }
+.meter span { display: block; height: 100%; background: var(--accent); }
+.tile.contract { gap: .2rem; font-weight: 400; }
+.facts { padding-right: 1.2rem; margin: .5rem 0 0; }
+tfoot th, tfoot td { font-weight: 700; border-top: 2px solid var(--border); }
+@media (max-width: 480px) {
+  .inline-form, .grid2 { grid-template-columns: 1fr; }
+}
+details summary { cursor: pointer; color: var(--accent); margin-top: .25rem; }
+details .inline-form { margin-top: .5rem; }

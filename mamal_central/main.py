@@ -19,8 +19,20 @@ from . import jalali
 from .config import Settings
 from .dashboard import build_dashboard
 from .db import make_engine, make_session_factory
-from .models import Attachment, DailyReport, Role, Unit, User, Workspace
+from .models import (
+    Attachment,
+    ContractStatus,
+    DailyReport,
+    MonthlyCost,
+    PartnershipContract,
+    Role,
+    StructureTier,
+    Unit,
+    User,
+    Workspace,
+)
 from .security import csrf_ok, csrf_token, verify_password
+from .settlement import compute_statement, load_month_inputs
 
 BASE_DIR = Path(__file__).parent
 ALLOWED_UPLOADS = {
@@ -42,6 +54,18 @@ templates.env.filters["money"] = lambda v: jalali.persian_digits(f"{int(v or 0):
     ",", "٬"
 )
 templates.env.filters["fa"] = jalali.persian_digits
+templates.env.filters["jmonth"] = lambda ym: jalali.format_month(*ym)
+
+
+def billions(value) -> str:
+    """3_000_000_000 -> '۳ میلیارد', 1_500_000_000 -> '۱٫۵ میلیارد'."""
+    text = f"{value / 1_000_000_000:.2f}".rstrip("0").rstrip(".")
+    return jalali.persian_digits(text).replace(".", "٫") + " میلیارد"
+
+
+templates.env.filters["billions"] = billions
+STATUS_LABELS = {"draft": "پیش‌نویس", "active": "فعال", "ended": "پایان‌یافته"}
+templates.env.globals["status_labels"] = STATUS_LABELS
 
 
 class NotLoggedIn(Exception):
@@ -338,6 +362,270 @@ def create_app(settings: Settings | None = None, today=dt.date.today) -> FastAPI
             path,
             media_type=att.content_type or mimetypes.guess_type(path.name)[0],
             headers={"X-Content-Type-Options": "nosniff"},
+        )
+
+    # ------------------------------------------------------ structure catalog
+
+    def require_manager(role: str):
+        if role not in ("admin", Role.manager.value):
+            raise HTTPException(404)
+
+    def require_admin(user: User):
+        if not user.is_admin:
+            raise HTTPException(404)
+
+    @app.get("/catalog", response_class=HTMLResponse)
+    def catalog(request: Request, user: User = Depends(current_user), db: Session = Depends(get_db)):
+        if not user.is_admin and not any(m.role == Role.manager for m in user.memberships):
+            raise HTTPException(404)
+        tiers = db.scalars(select(StructureTier).order_by(StructureTier.sort_order)).all()
+        return render(
+            request, "catalog.html", {"user": user, "tiers": tiers, "today": today()}
+        )
+
+    @app.post("/catalog/{tier_id}")
+    def catalog_update(
+        request: Request,
+        tier_id: int,
+        min_price: int = Form(..., ge=0),
+        max_price: int = Form(..., ge=0),
+        csrf: str = Form(""),
+        user: User = Depends(current_user),
+        db: Session = Depends(get_db),
+    ):
+        require_csrf(request, csrf)
+        require_admin(user)
+        tier = db.get(StructureTier, tier_id)
+        if not tier:
+            raise HTTPException(404)
+        if max_price < min_price:
+            raise HTTPException(400, "max_price must be >= min_price")
+        tier.min_price, tier.max_price, tier.price_updated_on = min_price, max_price, today()
+        db.commit()
+        return RedirectResponse("/catalog", status_code=303)
+
+    # ----------------------------------------------------- monthly costs
+
+    def recent_months(n: int = 12) -> list[tuple[int, int]]:
+        jy, jm, _ = jalali.to_jalali(today())
+        months = []
+        for _ in range(n):
+            months.append((jy, jm))
+            jy, jm = (jy - 1, 12) if jm == 1 else (jy, jm - 1)
+        return months
+
+    def parse_month(value: str | None) -> tuple[int, int]:
+        if not value:
+            return jalali.to_jalali(today())[:2]
+        try:
+            y, m = (int(x) for x in value.split("-"))
+        except ValueError:
+            raise HTTPException(400, "Invalid month")
+        if not 1 <= m <= 12:
+            raise HTTPException(400, "Invalid month")
+        return y, m
+
+    @app.get("/w/{slug}/costs", response_class=HTMLResponse)
+    def costs_form(
+        request: Request,
+        slug: str,
+        unit_id: int | None = None,
+        month: str | None = None,
+        saved: int = 0,
+        user: User = Depends(current_user),
+        db: Session = Depends(get_db),
+    ):
+        workspace, role = load_workspace(db, user, slug)
+        require_manager(role)
+        unit = get_unit(workspace, unit_id)
+        jy, jm = parse_month(month)
+        cost = db.scalar(
+            select(MonthlyCost).where(
+                MonthlyCost.unit_id == unit.id,
+                MonthlyCost.jalali_year == jy,
+                MonthlyCost.jalali_month == jm,
+            )
+        )
+        return render(
+            request,
+            "costs_form.html",
+            {
+                "user": user, "workspace": workspace, "role": role, "unit": unit,
+                "units": [u for u in workspace.units if u.active],
+                "ym": (jy, jm), "months": recent_months(), "cost": cost, "saved": bool(saved),
+            },
+        )
+
+    @app.post("/w/{slug}/costs")
+    def costs_submit(
+        request: Request,
+        slug: str,
+        unit_id: int = Form(...),
+        month: str = Form(...),
+        salaries: int = Form(0, ge=0),
+        taxes: int = Form(0, ge=0),
+        utilities: int = Form(0, ge=0),
+        depreciation: int = Form(0, ge=0),
+        advertising: int = Form(0, ge=0),
+        other: int = Form(0, ge=0),
+        notes: str = Form(""),
+        csrf: str = Form(""),
+        user: User = Depends(current_user),
+        db: Session = Depends(get_db),
+    ):
+        require_csrf(request, csrf)
+        workspace, role = load_workspace(db, user, slug)
+        require_manager(role)
+        unit = get_unit(workspace, unit_id)
+        jy, jm = parse_month(month)
+        cost = db.scalar(
+            select(MonthlyCost).where(
+                MonthlyCost.unit_id == unit.id,
+                MonthlyCost.jalali_year == jy,
+                MonthlyCost.jalali_month == jm,
+            )
+        )
+        if cost is None:
+            cost = MonthlyCost(unit_id=unit.id, jalali_year=jy, jalali_month=jm)
+            db.add(cost)
+        cost.salaries, cost.taxes, cost.utilities = salaries, taxes, utilities
+        cost.depreciation, cost.advertising, cost.other = depreciation, advertising, other
+        cost.notes = notes.strip()
+        db.commit()
+        return RedirectResponse(
+            f"/w/{slug}/costs?unit_id={unit.id}&month={jy}-{jm}&saved=1", status_code=303
+        )
+
+    # ------------------------------------------------- partnership contracts
+
+    def load_contract(db: Session, workspace: Workspace, contract_id: int) -> PartnershipContract:
+        contract = db.get(PartnershipContract, contract_id)
+        if not contract or contract.workspace_id != workspace.id:
+            raise HTTPException(404)
+        return contract
+
+    @app.get("/w/{slug}/contracts", response_class=HTMLResponse)
+    def contracts(
+        request: Request, slug: str,
+        user: User = Depends(current_user), db: Session = Depends(get_db),
+    ):
+        workspace, role = load_workspace(db, user, slug)
+        require_manager(role)
+        rows = []
+        for c in db.scalars(
+            select(PartnershipContract)
+            .where(PartnershipContract.workspace_id == workspace.id)
+            .order_by(PartnershipContract.code)
+        ):
+            rows.append(compute_statement(c, load_month_inputs(db, c, today()), today()))
+        return render(
+            request, "contracts.html",
+            {"user": user, "workspace": workspace, "role": role, "statements": rows},
+        )
+
+    def contract_form_ctx(user, workspace, role, contract):
+        return {
+            "user": user, "workspace": workspace, "role": role, "contract": contract,
+            "units": [u for u in workspace.units if u.active], "statuses": list(ContractStatus),
+        }
+
+    @app.get("/w/{slug}/contracts/new", response_class=HTMLResponse)
+    def contract_new(
+        request: Request, slug: str,
+        user: User = Depends(current_user), db: Session = Depends(get_db),
+    ):
+        workspace, role = load_workspace(db, user, slug)
+        require_admin(user)
+        return render(request, "contract_form.html", contract_form_ctx(user, workspace, role, None))
+
+    @app.get("/w/{slug}/contracts/{contract_id}/edit", response_class=HTMLResponse)
+    def contract_edit(
+        request: Request, slug: str, contract_id: int,
+        user: User = Depends(current_user), db: Session = Depends(get_db),
+    ):
+        workspace, role = load_workspace(db, user, slug)
+        require_admin(user)
+        contract = load_contract(db, workspace, contract_id)
+        return render(
+            request, "contract_form.html", contract_form_ctx(user, workspace, role, contract)
+        )
+
+    @app.post("/w/{slug}/contracts/save")
+    def contract_save(
+        request: Request,
+        slug: str,
+        contract_id: int | None = Form(None),
+        code: str = Form(...),
+        title: str = Form(...),
+        unit_id: int = Form(...),
+        investor_name: str = Form(...),
+        investor_contact: str = Form(""),
+        capital_structure: int = Form(0, ge=0),
+        capital_launch: int = Form(0, ge=0),
+        start_date: str = Form(""),
+        term_years: int = Form(3, ge=1, le=20),
+        max_term_years: int = Form(5, ge=1, le=30),
+        investor_pct_before: int = Form(60, ge=1, le=100),
+        investor_pct_after: int = Form(30, ge=0, le=100),
+        management_fee_pct: int = Form(10, ge=0, le=100),
+        exit_penalties: str = Form("7,5,3"),
+        buyout_multiplier: int = Form(2, ge=0, le=20),
+        status: ContractStatus = Form(ContractStatus.draft),
+        documents_url: str = Form(""),
+        notes: str = Form(""),
+        csrf: str = Form(""),
+        user: User = Depends(current_user),
+        db: Session = Depends(get_db),
+    ):
+        require_csrf(request, csrf)
+        workspace, _role = load_workspace(db, user, slug)
+        require_admin(user)
+        unit = get_unit(workspace, unit_id)
+        penalties = [p.strip() for p in exit_penalties.replace("،", ",").split(",") if p.strip()]
+        if not all(p.isdigit() and int(p) <= 100 for p in penalties):
+            raise HTTPException(400, "Exit penalties must be comma-separated percentages")
+        if documents_url and not documents_url.startswith("https://"):
+            raise HTTPException(400, "Documents link must start with https://")
+        code = code.strip().upper()
+        clash = db.scalar(select(PartnershipContract).where(PartnershipContract.code == code))
+        if contract_id is None:
+            if clash:
+                raise HTTPException(400, f"Contract code {code} already exists")
+            contract = PartnershipContract(workspace_id=workspace.id)
+            db.add(contract)
+        else:
+            contract = load_contract(db, workspace, contract_id)
+            if clash and clash.id != contract.id:
+                raise HTTPException(400, f"Contract code {code} already exists")
+        contract.code, contract.title, contract.unit_id = code, title.strip(), unit.id
+        contract.investor_name = investor_name.strip()
+        contract.investor_contact = investor_contact.strip()
+        contract.capital_structure, contract.capital_launch = capital_structure, capital_launch
+        contract.start_date = parse_date(start_date) if start_date else None
+        contract.term_years, contract.max_term_years = term_years, max_term_years
+        contract.investor_pct_before = investor_pct_before
+        contract.investor_pct_after = investor_pct_after
+        contract.management_fee_pct = management_fee_pct
+        contract.exit_penalties = ",".join(penalties)
+        contract.buyout_multiplier = buyout_multiplier
+        contract.status = status
+        contract.documents_url = documents_url.strip()
+        contract.notes = notes.strip()
+        db.commit()
+        return RedirectResponse(f"/w/{slug}/contracts/{contract.id}", status_code=303)
+
+    @app.get("/w/{slug}/contracts/{contract_id}", response_class=HTMLResponse)
+    def contract_detail(
+        request: Request, slug: str, contract_id: int,
+        user: User = Depends(current_user), db: Session = Depends(get_db),
+    ):
+        workspace, role = load_workspace(db, user, slug)
+        require_manager(role)
+        contract = load_contract(db, workspace, contract_id)
+        statement = compute_statement(contract, load_month_inputs(db, contract, today()), today())
+        return render(
+            request, "contract_detail.html",
+            {"user": user, "workspace": workspace, "role": role, "s": statement, "c": contract},
         )
 
     return app

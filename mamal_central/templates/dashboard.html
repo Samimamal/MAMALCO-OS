@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ workspace.name }} — MAMAL Central{% endblock %}
 {% block content %}
+{% set active = 'dash' %}{% include "_wsnav.html" %}
 <div class="page-head">
   <h1>{{ workspace.name }}</h1>
   <a class="button primary" href="/w/{{ workspace.slug }}/report">ثبت گزارش روزانه</a>

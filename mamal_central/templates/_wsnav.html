@@ -1,0 +1,9 @@
+{% if role != 'staff' %}
+<nav class="wsnav">
+  <a href="/w/{{ workspace.slug }}" class="{{ 'on' if active == 'dash' }}">داشبورد</a>
+  <a href="/w/{{ workspace.slug }}/report" class="{{ 'on' if active == 'report' }}">گزارش روزانه</a>
+  <a href="/w/{{ workspace.slug }}/costs" class="{{ 'on' if active == 'costs' }}">هزینه‌های ماهانه</a>
+  <a href="/w/{{ workspace.slug }}/contracts" class="{{ 'on' if active == 'contracts' }}">قراردادها</a>
+  <a href="/catalog">کاتالوگ سازه‌ها</a>
+</nav>
+{% endif %}

@@ -152,3 +152,105 @@ def test_unit_must_belong_to_workspace(app):
     login(admin, "sami", "admin-pass-123")
     resp = submit(admin, app.state.ids["shop"], TODAY, cash_sales=1)
     assert resp.status_code == 404
+
+
+# ------------------------------------------------------------ settlement
+
+from mamal_central.models import PartnershipContract
+from mamal_central.settlement import MonthInput, compute_statement, split_month
+
+
+def coffee_bus(**kw):
+    defaults = dict(
+        code="C-BUS03", title="Coffee Bus 03", investor_name="X",
+        capital_structure=1_850_000_000, capital_launch=850_000_000,
+        start_date=dt.date(2026, 3, 21), term_years=3, max_term_years=5,
+        investor_pct_before=60, investor_pct_after=30, management_fee_pct=10,
+        exit_penalties="7,5,3", buyout_multiplier=2,
+    )
+    defaults.update(kw)
+    return PartnershipContract(**defaults)
+
+
+def test_split_month_crossing_capital():
+    # 600 of capital left; 60% of 2000 = 1200 would overshoot.
+    # 1000 of profit returns the 600 at 60%; the other 1000 splits 30% -> 300.
+    assert split_month(2000, 9400, 10_000, 60, 30) == 900
+    assert split_month(1000, 0, 10_000, 60, 30) == 600
+    assert split_month(1000, 10_000, 10_000, 60, 30) == 300
+    assert split_month(-500, 0, 10_000, 60, 30) == 0
+
+
+def test_statement_numbers():
+    c = coffee_bus(capital_structure=1_000, capital_launch=0)
+    months = [
+        MonthInput(1405, 1, revenue=10_000, materials=3_000, operating=4_000, has_costs=True),
+        MonthInput(1405, 2, revenue=5_000, materials=3_000, operating=4_000, has_costs=True),
+        MonthInput(1405, 3, revenue=10_000, materials=3_000, operating=4_000, has_costs=True),
+    ]
+    s = compute_statement(c, months, dt.date(2026, 7, 1))
+    # fee 1000, net 2000 -> investor 60% = 1200 > capital 1000:
+    # 1667 of profit returns 1000, remaining 333 at 30% -> 99.
+    first = s.lines[0]
+    assert (first.management_fee, first.net_profit, first.investor_share) == (1_000, 2_000, 1_099)
+    assert first.manager_share == 901 and first.recovered
+    # Loss month: nothing distributed, not carried forward.
+    assert s.lines[1].net_profit == -2_500 and s.lines[1].investor_share == 0
+    assert s.lines[2].investor_share == 600  # 30% of 2000
+    assert s.is_recovered and s.current_investor_pct == 30
+    assert s.exit_penalty_pct is None
+    # Buyout: avg net (2000 - 2500 + 2000)/3 = 500 x 2 x 30%
+    assert s.buyout_value == 300
+
+
+def test_statement_penalty_and_projection():
+    c = coffee_bus()
+    months = [
+        MonthInput(1405, m, revenue=1_000_000_000, materials=400_000_000,
+                   operating=200_000_000, has_costs=True)
+        for m in (1, 2, 3)
+    ]
+    s = compute_statement(c, months, dt.date(2026, 7, 1))
+    # net = 1000 - 400 - 200 - 100 = 300M; investor 180M/month
+    assert s.investor_total == 540_000_000
+    assert s.remaining_capital == 2_160_000_000
+    assert s.months_to_recover == 12
+    assert s.contract_year == 1 and s.exit_penalty_pct == 7
+    assert s.exit_penalty_amount == 151_200_000
+    assert s.end_date == dt.date(2029, 3, 21)
+
+
+def test_contract_pages(app):
+    admin = TestClient(app)
+    login(admin, "sami", "admin-pass-123")
+    token = csrf_from(admin, "/w/kiosks/contracts/new")
+    resp = admin.post("/w/kiosks/contracts/save", data={
+        "csrf": token, "code": "c-bus03", "title": "Coffee Bus 03",
+        "unit_id": app.state.ids["bazaar"], "investor_name": "Investor",
+        "capital_structure": 1_850_000_000, "capital_launch": 850_000_000,
+        "start_date": "2026-09-23", "status": "active",
+    })
+    assert resp.status_code == 200
+    assert "C-BUS03" in resp.text and "۲٬۷۰۰٬۰۰۰٬۰۰۰" in resp.text
+
+    submit(admin, app.state.ids["bazaar"], TODAY, cash_sales=2_000_000, purchases=500_000)
+    token = csrf_from(admin, "/w/kiosks/costs")
+    admin.post("/w/kiosks/costs", data={
+        "csrf": token, "unit_id": app.state.ids["bazaar"], "month": "1405-7", "salaries": 300_000,
+    })
+    page = admin.get(resp.url).text
+    # 2,000,000 - 500,000 - 300,000 - 200,000 fee = 1,000,000 net; 60% to investor
+    assert "۱٬۰۰۰٬۰۰۰" in page and "۶۰۰٬۰۰۰" in page and "مهر ۱۴۰۵" in page
+
+    # Duplicate code is rejected; staff can't see contracts.
+    token = csrf_from(admin, "/w/kiosks/contracts/new")
+    dup = admin.post("/w/kiosks/contracts/save", data={
+        "csrf": token, "code": "C-BUS03", "title": "x", "unit_id": app.state.ids["bazaar"],
+        "investor_name": "y",
+    })
+    assert dup.status_code == 400
+    staff = TestClient(app)
+    login(staff, "mehran", "staff-pass-123")
+    assert staff.get("/w/kiosks/contracts").status_code == 404
+    assert staff.get("/w/kiosks/costs").status_code == 404
+    assert staff.get("/catalog").status_code == 404

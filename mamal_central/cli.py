@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import getpass
 import sys
 
@@ -10,7 +11,7 @@ from sqlalchemy import select
 
 from .config import Settings
 from .db import make_engine, make_session_factory
-from .models import Membership, Role, Unit, User, Workspace
+from .models import Membership, Role, StructureTier, Unit, User, Workspace
 from .security import hash_password
 
 # Starting point for the Oshnavieh kiosks; targets in toman per day.
@@ -23,6 +24,32 @@ MAMAL_KIOSKS = {
         ("لبنیات مامال", 3_000_000),
     ],
 }
+
+# Price list (toman), all-in until the unit is operating. Final price depends on
+# size, material, site, and inflation; update weekly from the /catalog page.
+STRUCTURE_TIERS = [
+    {
+        "name": "سازه‌های فرم‌دار مامال",
+        "examples": "کیوسک، چای‌خانه، کافه، اتوبوس‌کافه، لبنیاتی",
+        "includes": "سازه، تجهیزات، مارکتینگ و راه‌اندازی تا بهره‌برداری",
+        "min_price": 1_500_000_000,
+        "max_price": 3_000_000_000,
+    },
+    {
+        "name": "سازه‌های دهکده مامال",
+        "examples": "واحدهای اقامتی و خدماتی دهکده",
+        "includes": "سازه، تجهیزات و راه‌اندازی تا بهره‌برداری",
+        "min_price": 3_000_000_000,
+        "max_price": 6_000_000_000,
+    },
+    {
+        "name": "اقامتگاه‌های مامال",
+        "examples": "اقامتگاه کامل مامال",
+        "includes": "سازه، تجهیزات، مارکتینگ و راه‌اندازی تا بهره‌برداری",
+        "min_price": 6_000_000_000,
+        "max_price": 10_000_000_000,
+    },
+]
 
 
 def _read_password(args) -> str:
@@ -110,6 +137,15 @@ def cmd_init_mamal(db, _args):
     print(f"Created workspace {ws.slug} with {len(ws.units)} units")
 
 
+def cmd_init_catalog(db, _args):
+    if db.scalar(select(StructureTier)):
+        sys.exit("Catalog already exists; edit prices on the /catalog page")
+    for i, tier in enumerate(STRUCTURE_TIERS):
+        db.add(StructureTier(**tier, sort_order=i, price_updated_on=dt.date.today()))
+    db.commit()
+    print(f"Created {len(STRUCTURE_TIERS)} structure tiers")
+
+
 def cmd_list(db, _args):
     for ws in db.scalars(select(Workspace).order_by(Workspace.slug)):
         print(f"{ws.slug}  {ws.name}")
@@ -156,6 +192,7 @@ def main(argv=None):
     p.set_defaults(func=cmd_grant)
 
     sub.add_parser("init-mamal").set_defaults(func=cmd_init_mamal)
+    sub.add_parser("init-catalog").set_defaults(func=cmd_init_catalog)
     sub.add_parser("list").set_defaults(func=cmd_list)
 
     args = parser.parse_args(argv)
