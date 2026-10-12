@@ -111,7 +111,7 @@ def create_app(settings: Settings | None = None, today=dt.date.today) -> FastAPI
         secret_key=settings.secret_key,
         session_cookie="mamal_session",
         same_site="lax",
-        https_only=False,
+        https_only=os.environ.get("MAMAL_SECURE_COOKIES") == "1",
         max_age=14 * 24 * 3600,
     )
     app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
