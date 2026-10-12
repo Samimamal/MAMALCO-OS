@@ -186,19 +186,31 @@ class Site(Base):
 
 
 class CityPoint(Base):
-    """A kiosk location approved by the municipality (site-approval minutes),
-    with how many booths it may hold and which trades are allowed there."""
+    """A location from the project's points table: how many units it holds,
+    which trades, unit size and material, and which phase it belongs to.
+
+    Coordinates may be missing or flagged as suspect; such points stay in the
+    table but are left off maps until corrected.
+    """
 
     __tablename__ = "city_points"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     number: Mapped[int] = mapped_column(Integer, unique=True)
     name: Mapped[str] = mapped_column(String(200))
-    latitude: Mapped[float] = mapped_column(Float)
-    longitude: Mapped[float] = mapped_column(Float)
-    booths: Mapped[int] = mapped_column(Integer, default=1)
+    latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    booths: Mapped[int] = mapped_column(Integer, default=1)  # number of units
     trades: Mapped[str] = mapped_column(Text, default="")
+    dimensions_cm: Mapped[str] = mapped_column(String(100), default="")
+    material: Mapped[str] = mapped_column(String(100), default="")
+    phase: Mapped[int] = mapped_column(Integer, default=1)
+    flag: Mapped[str] = mapped_column(String(300), default="")  # coordinate problem to fix
     source: Mapped[str] = mapped_column(String(300), default="")
+
+    @property
+    def mappable(self) -> bool:
+        return self.latitude is not None and self.longitude is not None and not self.flag
 
     @property
     def trade_list(self) -> list[str]:

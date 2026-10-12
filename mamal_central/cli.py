@@ -29,7 +29,7 @@ from .models import (
     User,
     Workspace,
 )
-from .rules import CATEGORY_LABELS, CATEGORY_PREFIX, STRUCTURES_PER_CATEGORY
+from .rules import CATEGORY_LABELS, CATEGORY_PREFIX, STRUCTURE_COUNTS
 from .security import hash_password
 
 # Starting point for the Oshnavieh kiosks; targets in toman per day.
@@ -180,7 +180,7 @@ EXISTING_FORM_UNITS = [
 
 def cmd_init_structures(db, args):
     """Create one workspace per category with N numbered structure slots."""
-    count = args.count
+    fixed = getattr(args, "count", None)
     created = 0
     for category, (slug, ws_name, unit_name) in STRUCTURE_WORKSPACES.items():
         ws = db.scalar(select(Workspace).where(Workspace.slug == slug))
@@ -189,7 +189,7 @@ def cmd_init_structures(db, args):
             db.add(ws)
             db.flush()
         prefix = CATEGORY_PREFIX[category]
-        for i in range(1, count + 1):
+        for i in range(1, (fixed or STRUCTURE_COUNTS.get(category, 0)) + 1):
             code = f"{prefix}-{i:02d}"
             if db.scalar(select(Unit).where(Unit.code == code)):
                 continue
@@ -206,15 +206,15 @@ def cmd_init_structures(db, args):
     print(f"Created {created} structures ({', '.join(CATEGORY_LABELS[c] for c in STRUCTURE_WORKSPACES)})")
 
 
-# Survey sketch (کروکی) of the village land, multi-frequency GPS, UTM zone 38N.
-# Part of plot 4 subsidiary of 75 main, Qala Tuk; owner: National Land and Housing
-# Organization. Declared area 13,500 m². The p1->p2 side follows the curved access
+# Survey sketch (کروکی) of the lodge land at Qala Tuk (Bardeh Zard), multi-frequency
+# GPS, UTM zone 38N. Part of plot 4 subsidiary of 75 main, Qala Tuk; owner: National
+# Land and Housing Organization. Declared area 13,500 m². The p1->p2 side follows the curved access
 # road (32.9 + 28.2 + 44.3 + 47.8 + 26.0 m); its intermediate points are not in
 # the table, so the straight-chord polygon below is larger than the declared area.
-VILLAGE_SITE = {
-    "code": "SITE-VILLAGE-QT",
-    "name": "زمین دهکده مامال — قلاتوک",
-    "category": Category.village,
+LODGE_SITE = {
+    "code": "SITE-LODGE-QT",
+    "name": "زمین اقامتگاه مامال — قلاتوک (برده زرد)",
+    "category": Category.lodge,
     "owner": "سازمان ملی زمین و مسکن (قسمتی از پلاک ۴ فرعی از ۷۵ اصلی قلعه توک)",
     "declared_area_m2": 13_500,
     "points": [
@@ -234,22 +234,22 @@ VILLAGE_SITE = {
 }
 
 
-def cmd_init_village_site(db, _args):
-    if db.scalar(select(Site).where(Site.code == VILLAGE_SITE["code"])):
-        sys.exit("Village site already exists")
-    pts = VILLAGE_SITE["points"]
+def cmd_init_lodge_site(db, _args):
+    if db.scalar(select(Site).where(Site.code == LODGE_SITE["code"])):
+        sys.exit("Lodge site already exists")
+    pts = LODGE_SITE["points"]
     polygon = [utm_to_latlng(x, y, OSHNAVIEH_UTM_ZONE) for _, x, y in pts]
     site = Site(
-        code=VILLAGE_SITE["code"], name=VILLAGE_SITE["name"], category=VILLAGE_SITE["category"],
-        owner=VILLAGE_SITE["owner"], land_status=LandStatus.sketch,
-        declared_area_m2=VILLAGE_SITE["declared_area_m2"],
+        code=LODGE_SITE["code"], name=LODGE_SITE["name"], category=LODGE_SITE["category"],
+        owner=LODGE_SITE["owner"], land_status=LandStatus.sketch,
+        declared_area_m2=LODGE_SITE["declared_area_m2"],
         polygon_json=json.dumps(polygon),
         source_coordinates="\n".join(f"{n},{x},{y}" for n, x, y in pts) + "\nUTM zone 38N",
-        source_note=VILLAGE_SITE["source_note"],
+        source_note=LODGE_SITE["source_note"],
     )
     db.add(site)
     db.flush()
-    for u in db.scalars(select(Unit).where(Unit.category == Category.village)):
+    for u in db.scalars(select(Unit).where(Unit.category == Category.lodge)):
         if u.site_id is None:
             u.site_id = site.id
     db.commit()
@@ -257,30 +257,44 @@ def cmd_init_village_site(db, _args):
     print(f"Created {site.code}: declared 13,500 m², straight-chord polygon {straight:,.0f} m²")
 
 
-POINTS_FILE = Path(__file__).parent / "seed" / "oshnavieh_points_1405.csv"
-POINTS_SOURCE = "صورتجلسه‌ی تأییدیه‌ی جانمایی دکه‌های دهکده مامال، ۱۴۰۵/۰۲/۲۱ (شماره ۱۷۱۴)"
+POINTS_FILE = Path(__file__).parent / "seed" / "mamal_points_dossier_1405.csv"
+POINTS_SOURCE = "پرونده جامع پروژه دهکده مامال، ۱۴۰۵/۰۷/۲۰ — جدول نقاط (از دفترچه طرح)"
+# Oshnavieh bounding box; coordinates outside it are typos to be corrected.
+OSHNAVIEH_BOUNDS = (37.00, 37.08, 45.05, 45.15)
 
 
 def cmd_import_city_points(db, args):
-    """Approved kiosk locations (number,name,lat,lng,booths,trades) -> map."""
+    """Points table CSV -> map. Columns: number,name,trades,lat,lng and optionally
+    dimensions_cm,material,phase,count (or booths)."""
     path = Path(args.file) if args.file else POINTS_FILE
     count = 0
+    lat_lo, lat_hi, lng_lo, lng_hi = OSHNAVIEH_BOUNDS
     with open(path, encoding="utf-8-sig") as fh:
         for row in csv.DictReader(fh):
             number = int(row["number"])
             point = db.scalar(select(CityPoint).where(CityPoint.number == number)) or CityPoint(number=number)
             point.name = row["name"].strip()
-            point.latitude, point.longitude = float(row["lat"]), float(row["lng"])
-            if not (36.9 < point.latitude < 37.2 and 44.9 < point.longitude < 45.3):
-                sys.exit(f"Point {number} is outside Oshnavieh: {point.latitude},{point.longitude}")
-            point.booths = int(row["booths"])
-            point.trades = row.get("trades", "").strip()
+            lat, lng = (row.get("lat") or "").strip(), (row.get("lng") or "").strip()
+            point.latitude = float(lat) if lat else None
+            point.longitude = float(lng) if lng else None
+            if point.latitude is None or point.longitude is None:
+                point.flag = "مختصات ندارد"
+            elif not (lat_lo < point.latitude < lat_hi and lng_lo < point.longitude < lng_hi):
+                point.flag = f"مختصات {point.latitude}، {point.longitude} بیرون از شهر است (احتمالاً اشتباه تایپی)"
+            else:
+                point.flag = ""
+            point.booths = int(row.get("count") or row.get("booths") or 1)
+            point.trades = (row.get("trades") or "").strip()
+            point.dimensions_cm = (row.get("dimensions_cm") or "").strip()
+            point.material = (row.get("material") or "").strip()
+            point.phase = int(row.get("phase") or 1)
             point.source = args.source or POINTS_SOURCE
             db.add(point)
             count += 1
     db.commit()
-    total = sum(p.booths for p in db.scalars(select(CityPoint)))
-    print(f"Imported {count} points, {total} booths in total")
+    points = db.scalars(select(CityPoint)).all()
+    flagged = sum(1 for p in points if p.flag)
+    print(f"Imported {count} points, {sum(p.booths for p in points)} units, {flagged} flagged")
 
 
 def cmd_import_kml(db, args):
@@ -391,7 +405,7 @@ def main(argv=None):
     sub.add_parser("init-mamal").set_defaults(func=cmd_init_mamal)
     sub.add_parser("init-catalog").set_defaults(func=cmd_init_catalog)
 
-    sub.add_parser("init-village-site").set_defaults(func=cmd_init_village_site)
+    sub.add_parser("init-lodge-site").set_defaults(func=cmd_init_lodge_site)
 
     p = sub.add_parser("import-city-points", help="approved kiosk locations CSV -> map")
     p.add_argument("file", nargs="?", help="defaults to the 1405 site-approval table")
@@ -413,7 +427,7 @@ def main(argv=None):
     p.set_defaults(func=cmd_import_points)
 
     p = sub.add_parser("init-structures")
-    p.add_argument("--count", type=int, default=STRUCTURES_PER_CATEGORY)
+    p.add_argument("--count", type=int, help="same number for every category (default: the plan's counts)")
     p.set_defaults(func=cmd_init_structures)
     sub.add_parser("list").set_defaults(func=cmd_list)
 

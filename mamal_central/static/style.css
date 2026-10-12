@@ -233,3 +233,11 @@ figure.wide figcaption { color: var(--muted); font-size: .85rem; margin-top: .4r
 .sc-num { fill: var(--text); font-size: 12px; font-weight: 600; }
 .sc-bar { stroke: var(--muted); stroke-width: 2; }
 .sc-label { fill: var(--muted); font-size: 11px; }
+.duo { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-bottom: 4px; }
+.trio { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+.trio figure { margin: 0; }
+.trio img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 10px; display: block; }
+.trio figcaption { color: var(--muted); font-size: .8rem; margin-top: .25rem; }
+.sc-dot.sc-p2 { fill: #b06a1b; stroke: #b06a1b; }
+.sc-dot.sc-village { fill: #3d5a99; stroke: #3d5a99; }
+.dot.p2 { background: #b06a1b; border-color: #b06a1b; }

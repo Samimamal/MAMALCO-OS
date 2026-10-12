@@ -16,7 +16,7 @@
   <a class="card cat" href="/structures?category={{ c.value }}">
     <h2>{{ category_labels[c.value] }}</h2>
     {% if tiers.get(c) %}<span class="price">{{ tiers[c].min_price|billions }} تا {{ tiers[c].max_price|billions }} تومان</span>{% endif %}
-    <span class="muted">{{ counts[c]|fa }} سازه روی نقشه · برنامه: {{ planned|fa }} سازه</span>
+    <span class="muted">{{ counts[c]|fa }} سازه روی نقشه · برنامه: {{ planned[c.value]|fa }} سازه</span>
   </a>
   {% endfor %}
 </section>

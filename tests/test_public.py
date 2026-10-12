@@ -213,10 +213,10 @@ def test_utm_conversion_matches_reference():
     assert abs(lat - 37.045589) < 1e-6 and abs(lng - 45.083351) < 1e-6
 
 
-def test_village_polygon_area():
-    from mamal_central.cli import VILLAGE_SITE
+def test_lodge_polygon_area():
+    from mamal_central.cli import LODGE_SITE
 
-    utm = [(x, y) for _, x, y in VILLAGE_SITE["points"]]
+    utm = [(x, y) for _, x, y in LODGE_SITE["points"]]
     straight = shoelace_area(utm)
     # Straight p1-p2 chord: ~17,844 m², larger than the declared 13,500 m² because
     # the real boundary follows the curved access road.
@@ -267,13 +267,17 @@ def test_city_points_import_and_issues(tmp_path):
     db = make_session_factory(make_engine(f"sqlite:///{tmp_path / 'p.db'}"))()
     cli.cmd_import_city_points(db, type("A", (), {"file": None, "source": None})())
     points = db.query(CityPoint).order_by(CityPoint.number).all()
-    assert len(points) == 19 and sum(p.booths for p in points) == 58
+    assert len(points) == 34 and sum(p.booths for p in points) == 83
+    flagged = {p.number for p in points if p.flag}
+    # Rows 6-7 have latitude 37.093 (outside the city); rows 14 and 16 have none.
+    assert flagged == {6, 7, 14, 16}
     issues = point_issues(points)
-    # Terminal/Majidabad, CNG exit/coastal road, Urmia/Piranshahr exits share coordinates.
-    assert len(issues) == 3 and any("ترمینال" in i and "مجیدآباد" in i for i in issues)
+    assert any("فلکه بیمارستان" in i and "شیخ عبدالعزیز" in i for i in issues)
     db.close()
 
 
 def test_pilot_page(app):
     page = TestClient(app).get("/pilot").text
     assert "۱۴۰۴/۱۱/۱۸" in page and "سال ۵" in page
+    # Internal contract details stay off the public page.
+    assert "۰۲/۱۶۰۱۸" not in page and "۳٫۵ میلیون" not in page and "۳۵٬۰۰۰٬۰۰۰" not in page

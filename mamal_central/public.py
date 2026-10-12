@@ -33,7 +33,8 @@ from .rules import (
     RAISE_LABELS,
     SALARY_MAX,
     SALARY_MIN,
-    STRUCTURES_PER_CATEGORY,
+    KIOSKS_VISION,
+    STRUCTURE_COUNTS,
     investment_rule,
 )
 
@@ -147,7 +148,7 @@ def register(app: FastAPI, ctx) -> None:
         counts = {c: sum(1 for u in units if u.category == c) for c in PUBLIC_CATEGORIES}
         return page(request, "public/home.html", {
             "featured": units[:6], "counts": counts, "tiers": tiers_by_category(db),
-            "planned": STRUCTURES_PER_CATEGORY,
+            "planned": {c.value: n for c, n in STRUCTURE_COUNTS.items()},
         })
 
     @app.get("/structures", response_class=HTMLResponse)
@@ -158,7 +159,7 @@ def register(app: FastAPI, ctx) -> None:
             raise HTTPException(404)
         return page(request, "public/structures.html", {
             "units": listed_units(db, cat), "category": cat, "tiers": tiers_by_category(db),
-            "planned": STRUCTURES_PER_CATEGORY,
+            "planned": {c.value: n for c, n in STRUCTURE_COUNTS.items()},
         })
 
     @app.get("/s/{code}", response_class=HTMLResponse)
@@ -178,7 +179,9 @@ def register(app: FastAPI, ctx) -> None:
         tiers = tiers_by_category(db)
         points = db.scalars(select(CityPoint).order_by(CityPoint.number)).all()
         return page(request, "public/pilot.html", {
-            "city_points": points, "schematic": schematic(list(points)),
+            "city_points": points, "schematic": schematic([p for p in points if p.mappable]),
+            "flagged_points": [p for p in points if not p.mappable],
+            "kiosks_vision": KIOSKS_VISION, "counts": {c.value: n for c, n in STRUCTURE_COUNTS.items()},
             "booth_total": sum(p.booths for p in points),
             "tiers": tiers, "rollout": CITY_ROLLOUT, "expansion": EXPANSION_STEPS,
             "rules": {c: investment_rule(c, tiers[c].min_price if c in tiers else None)
@@ -201,7 +204,7 @@ def register(app: FastAPI, ctx) -> None:
         city = [
             {"lat": p.latitude, "lng": p.longitude, "number": p.number, "name": p.name,
              "booths": p.booths, "trades": p.trades}
-            for p in db.scalars(select(CityPoint).order_by(CityPoint.number))
+            for p in db.scalars(select(CityPoint).order_by(CityPoint.number)) if p.mappable
         ]
         return page(request, "map.html", {"points": points, "sites": [], "city": city,
                                           "admin_view": False})

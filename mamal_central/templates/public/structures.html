@@ -8,7 +8,7 @@
   {% for c in category_order %}<a href="/structures?category={{ c.value }}" class="{{ 'on' if category == c }}">{{ category_labels[c.value] }}</a>{% endfor %}
 </nav>
 {% if category and tiers.get(category) %}
-<p class="muted">بازه‌ی هزینه تا بهره‌برداری: {{ tiers[category].min_price|billions }} تا {{ tiers[category].max_price|billions }} تومان · {{ planned|fa }} سازه در برنامه</p>
+<p class="muted">بازه‌ی هزینه تا بهره‌برداری: {{ tiers[category].min_price|billions }} تا {{ tiers[category].max_price|billions }} تومان · {{ planned[category.value]|fa }} سازه در برنامه</p>
 {% endif %}
 {% if units %}
 <div class="sgrid">{% for u in units %}{{ card(u) }}{% endfor %}</div>

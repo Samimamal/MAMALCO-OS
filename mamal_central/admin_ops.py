@@ -448,7 +448,7 @@ def register(app: FastAPI, ctx) -> None:
         city = [
             {"lat": p.latitude, "lng": p.longitude, "number": p.number, "name": p.name,
              "booths": p.booths, "trades": p.trades}
-            for p in city_rows
+            for p in city_rows if p.mappable
         ]
         return render(request, "map.html", {
             "user": user, "points": points, "sites": site_data, "admin_view": True,

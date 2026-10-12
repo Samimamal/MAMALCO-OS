@@ -53,7 +53,7 @@ def build_app(data_dir: Path):
     settings = Settings(data_dir=data_dir, secret_key="preview")
     app = create_app(settings)
     db = app.state.session_factory()
-    cli.cmd_init_structures(db, type("A", (), {"count": 10})())
+    cli.cmd_init_structures(db, type("A", (), {"count": None})())
     cli.cmd_init_catalog(db, None)
     cli.cmd_import_city_points(db, type("A", (), {"file": None, "source": None})())
     brand = ROOT / "mamal_central/static/img/mamal-brands.jpg"

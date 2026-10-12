@@ -1,67 +1,99 @@
 {% extends "public/_base.html" %}
-{% block title %}طرح مامال — پایلوت اشنویه{% endblock %}
-{% block description %}طرح مامال: دکه‌ها و سازه‌های فرم‌دار، دهکده و اقامتگاه‌های مامال در اشنویه؛ وضعیت، مسیر اداری، نقشه، شرایط همکاری و برنامه‌ی گسترش.{% endblock %}
+{% block title %}دهکده مامال — اشنویه{% endblock %}
+{% block description %}دهکده مامال و دکه‌های متحدالشکل شهری در اشنویه: طرح، فازها، پشتوانه‌ی رسمی، نقاط، دهکده‌ی ابرخشتی، اقامتگاه و شرایط همکاری.{% endblock %}
 {% block content %}
 <article class="pilot">
 
 <section class="hero">
-  <span class="code">MAMAL · پایلوت اشنویه · ۱۴۰۵</span>
-  <h1>هر دکه‌ی مامال یک کسب‌وکار محلی مستقل است؛ اشنویه اولین شهر است</h1>
-  <p class="lead">مامال دکه‌های فرم‌دار و متحرک می‌سازد — قوری، فنجان، مشک، سیب، تخم‌مرغ — که هر کدام فروشگاه، کارکنان، حساب و سرمایه‌گذار خودش را دارد. پایلوت در اشنویه با قرارداد رسمی شهرداری شروع شده و همین بسته شهر به شهر تکرار می‌شود.</p>
+  <span class="code">MAMALCO · PEOPLE | PLACES | EXPERIENCES</span>
+  <h1>دهکده مامال و دکه‌های متحدالشکل شهری اشنویه</h1>
+  <p class="lead">شبکه‌ای از دکه‌ها و سازه‌های فرم‌دار با یک برند، در نقاط پرتردد شهر؛ و دهکده‌ی مامال، مقصدی برای زندگی، کسب‌وکار و تجربه. اجرای طرح بر اساس مصوبه‌ی شورای اسلامی شهر و قرارداد رسمی ۱۰ ساله با شهرداری اشنویه.</p>
 </section>
 
-<figure class="wide">
-  <img src="/static/img/mamal-brands.jpg" alt="طرح دکه‌های فرم‌دار مامال: چای‌خانه، کافه، اسموتی، بستنی، لبنیات و دکه‌های متحرک" loading="eager">
-  <figcaption>طرح دکه‌های مامال؛ ردیف پایین متحرک و چرخ‌دار است.</figcaption>
-</figure>
+<div class="duo">
+  <figure class="wide"><img src="/static/img/village-poster.jpg" alt="پوستر دهکده مامال" loading="eager"><figcaption>طرح — پوستر دهکده مامال</figcaption></figure>
+  <figure class="wide"><img src="/static/img/forms-poster.jpg" alt="پوستر سازه‌های فرم‌دار مامال" loading="eager"><figcaption>طرح — MAMAL FORMS: هر شغل، یک سازه‌ی منحصربه‌فرد</figcaption></figure>
+</div>
 
 <section class="card">
-  <h2>امروز کجا هستیم</h2>
+  <h2>برند</h2>
+  <ul class="facts">
+    <li><strong>مامال (MAMAL)</strong> — شرکت و برند مادر: MAMALCO</li>
+    <li><strong>دهکده مامال (MAMAL VILLAGE)</strong> — مقصدی برای زندگی، کسب‌وکار و تجربه</li>
+    <li><strong>سازه‌های فرم‌دار مامال (MAMAL FORMS)</strong> — طراحی، تولید و نصب دکه‌های سه‌بعدی: قوری، فنجان قهوه، بستنی، بطری شیر</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h2>طرح کلی و فازها</h2>
   <table class="facts-table">
-    <thead><tr><th>بخش</th><th>وضعیت</th><th>برنامه</th></tr></thead>
+    <thead><tr><th>بخش</th><th>شرح</th><th>تعداد</th><th>وضعیت</th></tr></thead>
     <tbody>
-      <tr><td>دکه‌های شهری</td><td><span class="tag good">فعال</span> چای‌خانه‌ی مامال، لبنیات مامال، MAMAL Bazaar</td><td>۱۰ دکه در سال اول قرارداد، سپس هر سال ۵ دکه تا ۳۰</td></tr>
-      <tr><td>دهکده‌ی مامال</td><td><span class="tag warn">در مسیر اخذ قرارداد زمین</span></td><td>۱۰ واحد، ساخت از بهار پس از قرارداد و پروانه</td></tr>
-      <tr><td>اقامتگاه‌های مامال</td><td><span class="tag warn">در مسیر اخذ قرارداد</span></td><td>۱۰ اقامتگاه، پس از مجوز میراث فرهنگی و پروانه</td></tr>
-      <tr><td>سامانه‌ی MAMAL Central</td><td><span class="tag good">ساخته شده</span></td><td>گزارش روزانه، حساب جدا برای هر واحد، صورت‌حساب ماهانه‌ی سرمایه‌گذار</td></tr>
+      <tr><td>دکه‌های شهری — کل طرح</td><td>دکه‌های متحدالشکل در سطح شهر</td><td class="num">{{ kiosks_vision|fa }}</td><td><span class="tag">چشم‌انداز</span></td></tr>
+      <tr><td>فاز اول دکه‌ها</td><td>۳۰ محل، هر کدام حدود ۱۲ متر مربع، کانکس پیش‌ساخته با طراحی تأییدشده‌ی شهرداری</td><td class="num">{{ counts['form']|fa }}</td><td><span class="tag good">قرارداد امضا شده؛ پل بازار نصب شده</span></td></tr>
+      <tr><td>دهکده مامال</td><td>سازه‌های گنبدی ابرخشتی، هر کدام حداکثر حدود ۳۶ متر مربع، در محدوده‌ی حدود ۲٬۰۰۰ متر مربع</td><td class="num">{{ counts['village']|fa }}</td><td><span class="tag warn">مجوز ساخت و الحاقیه در جریان</span></td></tr>
+      <tr><td>اقامتگاه</td><td>زمین ۱۳٬۵۰۰ متر مربعی در قلاتوک (برده زرد)، پیوست طرح دهکده</td><td class="num">{{ counts['lodge']|fa }}</td><td><span class="tag warn">در مرحله‌ی پیگیری</span></td></tr>
     </tbody>
   </table>
 </section>
 
 <section class="card">
-  <h2>مسیر اداری طی‌شده</h2>
-  <p>طرح از مسیر رسمی شهرداری و شورای شهر آغاز شده است:</p>
-  <ol class="timeline">
-    <li><strong>۱۴۰۴/۰۳/۲۰</strong> — تصویب در شورای اسلامی شهر اشنویه، جلسه‌ی ۴۹۰، با ۵ رأی موافق از ۵ عضو</li>
-    <li><strong>۱۴۰۴/۰۷/۰۱</strong> — مزایده‌ی نوبت دوم اجاره‌ی محل‌ها</li>
-    <li><strong>۱۴۰۴/۰۸/۱۱</strong> — صورتجلسه‌ی هیئت عالی معاملات شهرداری</li>
-    <li><strong>۱۴۰۴/۰۸/۱۲</strong> — نظریه‌ی کارشناس رسمی دادگستری</li>
-    <li><strong>۱۴۰۴/۱۱/۱۸</strong> — قرارداد واگذاری اجاره‌ی محل استقرار دکه‌ها (دهکده مامال)، شماره‌ی ۰۲/۱۶۰۱۸، مدت ۱۰ سال</li>
-    <li><strong>۱۴۰۵/۰۲/۲۳</strong> — صورتجلسه‌ی تأییدیه‌ی جانمایی دکه‌ها</li>
-  </ol>
-  <p class="muted">هر سازه‌ای فراتر از دکه، فقط با پروانه‌ی جداگانه‌ی مرجع مربوط ساخته می‌شود.</p>
+  <h2>برنامه‌ی زمانی فاز اول</h2>
+  <table class="facts-table">
+    <thead><tr><th>دوره</th><th>اجرا</th><th>تجمعی</th></tr></thead>
+    <tbody>{% for year, total in rollout %}<tr><td>سال {{ year|fa }}</td><td class="num">{{ (total if loop.first else total - loop.previtem[1])|fa }} کانکس</td><td class="num">{{ total|fa }}</td></tr>{% endfor %}</tbody>
+  </table>
+  <p class="muted">شروع تعهدات زمانی هر فاز از تاریخ صدور مجوزهای کامل و امکان اجرای زیرساخت‌هاست. مراحل هر کانکس: اخذ مجوز، آماده‌سازی، تأسیس. پس از اجرای کامل فاز اول، مکان‌های فاز دوم واگذار می‌شود. مدت قرارداد ۱۰ سال، با امکان تمدید برای دو دوره‌ی ۱۰ ساله‌ی دیگر.</p>
 </section>
 
 <section class="card">
-  <h2>نقاط پیشنهادی در سطح شهر</h2>
+  <h2>پشتوانه‌ی رسمی</h2>
+  <ol class="timeline">
+    <li><strong>۱۴۰۴/۰۳/۲۰</strong> — مصوبه‌ی شورای اسلامی شهر اشنویه، با ۵ رأی موافق</li>
+    <li>تأییدیه‌ی فرمانداری</li>
+    <li><strong>۱۴۰۴/۰۷/۰۱</strong> — آگهی مزایده‌ی نوبت دوم</li>
+    <li><strong>۱۴۰۴/۰۸/۰۱</strong> — صورتجلسه‌ی هیئت عالی معاملات شهرداری</li>
+    <li><strong>۱۴۰۴/۰۸/۱۲</strong> — نظریه‌ی کارشناس رسمی دادگستری</li>
+    <li><strong>۱۴۰۴/۱۱/۱۸</strong> — قرارداد واگذاری اجاره‌ی محل استقرار کانکس (دهکده مامال)، ۱۰ ساله</li>
+    <li><strong>۱۴۰۵/۰۲/۲۳</strong> — صورتجلسه‌ی تأییدیه‌ی جانمایی دکه‌ها</li>
+  </ol>
+</section>
+
+<section class="card">
+  <h2>دهکده مامال</h2>
+  <p>۳۰ سازه‌ی گنبدی ابرخشتی برای کسب‌وکارهای محلی، غذا، صنایع‌دستی و تجربه‌ی گردشگری، در غرب شهر و مشرف به آن: قصابی، لبنیاتی، چایخانه، کافه، نان محلی، رستوران، ادویه، ترشی‌جات و خشکبار.</p>
+  <figure class="wide flat"><img src="/static/img/village-land-photo.jpg" alt="عکس واقعی زمین دهکده و چشم‌انداز شهر اشنویه" loading="lazy"><figcaption>عکس واقعی — زمین دهکده و چشم‌انداز شهر</figcaption></figure>
+  <div class="trio">
+    <figure><img src="/static/img/dome-exterior.jpg" alt="نمای بیرونی سازه‌های گنبدی" loading="lazy"><figcaption>طرح — نمای بیرونی</figcaption></figure>
+    <figure><img src="/static/img/dome-kitchen.jpg" alt="فضای داخلی آشپزخانه و کافه" loading="lazy"><figcaption>طرح — آشپزخانه و کافه</figcaption></figure>
+    <figure><img src="/static/img/dome-bath.jpg" alt="سرویس بهداشتی سازه‌ی گنبدی" loading="lazy"><figcaption>طرح — سرویس بهداشتی</figcaption></figure>
+  </div>
+</section>
+
+<section class="card">
+  <h2>اقامتگاه</h2>
+  <p>بالای شهر اشنویه، قلاتوک (برده زرد)، کنار راه اشنویه به گلاز، حدود ۶۴۰ متر غرب دهکده‌ی مامال. قطعه‌ی ۱۳٬۵۰۰ متر مربعی طبق کروکی نقشه‌برداری؛ کاربری اقامتگاه گردشگری، پیوست طرح دهکده، در مرحله‌ی پیگیری.</p>
+</section>
+
+<section class="card">
+  <h2>نقاط شهر</h2>
   <figure class="wide flat">
     <img src="/static/img/oshnavieh-points-map.jpg" alt="نقشه‌ی شهرداری اشنویه: نحوه‌ی پراکنش نقاط پیشنهادی پروژه‌ی دهکده مامال" loading="lazy">
-    <figcaption>نقشه‌ی واحد فنی و شهرسازی شهرداری اشنویه — نقاط پیشنهادی در محدوده‌ی خدماتی شهر.</figcaption>
+    <figcaption>نقشه‌ی واحد فنی و شهرسازی (GIS) شهرداری اشنویه — نقاط پیشنهادی در محدوده‌ی خدماتی شهر.</figcaption>
   </figure>
-  <p>هر نقطه پس از نصب دکه با مختصات GPS، عکس و محصولاتش روی <a href="/map">نقشه‌ی سایت</a> منتشر می‌شود.</p>
 </section>
 
 {% if city_points %}
 <section class="card">
-  <h2>{{ city_points|length|fa }} محل مصوب، {{ booth_total|fa }} غرفه</h2>
-  <p class="muted">طبق صورتجلسه‌ی تأییدیه‌ی جانمایی دکه‌ها، ۱۴۰۵/۰۲/۲۱. نقشه‌ی شماتیک بر اساس مختصات همان جدول؛ محل‌های هم‌مکان یا خیلی نزدیک کنار هم نشان داده شده‌اند.</p>
+  <h2>{{ city_points|length|fa }} محل، {{ booth_total|fa }} واحد</h2>
+  <p class="muted">شامل ۳۰ سازه‌ی دهکده. فاز ۱ = فاز اول، فاز ۲ = فاز دوم. نقشه‌ی شماتیک بر اساس مختصات جدول؛ محل‌های هم‌مکان یا خیلی نزدیک کنار هم نشان داده شده‌اند.</p>
   {% set sc = schematic %}
   <div class="schematic-wrap">
-  <svg class="schematic" viewBox="0 0 {{ sc.width }} {{ sc.height + 30 }}" role="img" aria-label="نقشه‌ی شماتیک محل‌های مصوب دکه‌ها در اشنویه">
+  <svg class="schematic" viewBox="0 0 {{ sc.width }} {{ sc.height + 30 }}" role="img" aria-label="نقشه‌ی شماتیک محل‌های دکه‌ها در اشنویه">
     <rect x="1" y="1" width="{{ sc.width - 2 }}" height="{{ sc.height + 28 }}" rx="10" class="sc-frame"/>
     {% for item in sc.points %}
     <g class="sc-point">
-      <circle cx="{{ item.x }}" cy="{{ item.y }}" r="{{ 7 + item.p.booths }}" class="sc-dot"/>
+      <circle cx="{{ item.x }}" cy="{{ item.y }}" r="{{ [7 + item.p.booths, 16]|min }}" class="sc-dot {{ 'sc-p2' if item.p.phase == 2 }} {{ 'sc-village' if item.p.booths >= 20 }}"/>
       <text x="{{ item.x }}" y="{{ item.y + 4 }}" text-anchor="middle" class="sc-num">{{ item.p.number|fa }}</text>
     </g>
     {% endfor %}
@@ -70,12 +102,13 @@
     <text x="40" y="{{ sc.height + 18 }}" class="sc-label">شمال ↑</text>
   </svg>
   </div>
+  <div class="legend"><span><i class="dot form"></i>فاز اول</span><span><i class="dot p2"></i>فاز دوم</span><span><i class="dot village"></i>دهکده مامال</span></div>
   <div class="table-wrap">
   <table class="facts-table">
-    <thead><tr><th>#</th><th>محل</th><th>غرفه</th><th>مشاغل مصوب</th></tr></thead>
+    <thead><tr><th>#</th><th>محل</th><th>کاربری</th><th class="opt">ابعاد (سانتی‌متر)</th><th class="opt">جنس</th><th>فاز</th><th>تعداد</th></tr></thead>
     <tbody>
     {% for p in city_points %}
-      <tr><td class="num">{{ p.number|fa }}</td><td>{{ p.name }}</td><td class="num">{{ p.booths|fa }}</td><td>{{ p.trade_list|join('، ') }}</td></tr>
+      <tr><td class="num">{{ p.number|fa }}</td><td>{{ p.name }}{% if not p.mappable %} <span class="tag warn">مختصات در حال اصلاح</span>{% endif %}</td><td>{{ p.trade_list|join('، ') }}</td><td class="num opt">{{ p.dimensions_cm|fa }}</td><td class="opt">{{ p.material }}</td><td class="num">{{ p.phase|fa }}</td><td class="num">{{ p.booths|fa }}</td></tr>
     {% endfor %}
     </tbody>
   </table>
@@ -84,22 +117,13 @@
 {% endif %}
 
 <section class="card">
-  <h2>برای شهر چه دارد</h2>
-  <div class="stats">
-    <div class="stat"><span class="label">اشتغال مستقیم (برآورد)</span><span class="value">۲ نفر</span><span class="sub">در هر دکه؛ ۲۰ نفر با ۱۰ دکه</span></div>
-    <div class="stat"><span class="label">اجاره به شهرداری</span><span class="value">۳٫۵ میلیون</span><span class="sub">تومان ماهانه برای هر دکه طبق قرارداد</span></div>
-    <div class="stat"><span class="label">محصول محلی</span><span class="value">لبنیات، چای، عسل</span><span class="sub">خرید از تولیدکننده‌های منطقه</span></div>
-    <div class="stat"><span class="label">چهره‌ی شهر</span><span class="value">نشانه‌ی شهری</span><span class="sub">دکه‌های متحدالشکل و عکس‌گرفتنی</span></div>
-  </div>
-</section>
-
-<section class="card">
-  <h2>برنامه‌ی دکه‌های اشنویه</h2>
-  <table class="facts-table">
-    <thead><tr><th>سال قرارداد</th><th>تعداد کل دکه‌ها</th></tr></thead>
-    <tbody>{% for year, total in rollout %}<tr><td>سال {{ year|fa }}</td><td class="num">{{ total|fa }}</td></tr>{% endfor %}</tbody>
-  </table>
-  <p class="muted">دکه‌ی بعدی فقط وقتی اضافه می‌شود که دکه‌های قبلی ۴ هفته روی هدف فروش باشند و گزارش روزانه کامل باشد.</p>
+  <h2>برای شهر</h2>
+  <ul class="facts">
+    <li>اشتغال محلی در هر دکه و هر سازه‌ی دهکده</li>
+    <li>درآمد پایدار اجاره برای شهرداری در طول قرارداد</li>
+    <li>عرضه‌ی محصولات بومی: لبنیات، عسل، نان محلی، خشکبار</li>
+    <li>دکه‌های متحدالشکل و عکس‌گرفتنی به‌عنوان نشانه‌های شهری، و دهکده به‌عنوان مقصد گردشگری</li>
+  </ul>
 </section>
 
 <section class="card">
@@ -107,7 +131,7 @@
   <ol class="steps">
     {% for name, detail in expansion %}<li><strong>{{ name }}</strong><span>{{ detail }}</span></li>{% endfor %}
   </ol>
-  <p>هر برند (چای‌خانه، کافه، لبنیات، بستنی، اسموتی، دکه‌های متحرک) جداگانه قابل تکرار است: با سرمایه‌گذار هر واحد، با بهره‌بردار محلی، یا به‌صورت فرانچایز.</p>
+  <p>هر برند جداگانه قابل تکرار است: با سرمایه‌گذار هر واحد، با بهره‌بردار محلی، یا به‌صورت فرانچایز.</p>
 </section>
 
 <section class="card">
@@ -116,45 +140,36 @@
     <div>
       <h3>سرمایه‌گذار</h3>
       <ul class="facts">
-        <li>دکه‌ی شهری: {{ tiers.get(category_order[0]).min_price|billions if tiers.get(category_order[0]) else '' }} تا {{ tiers.get(category_order[0]).max_price|billions if tiers.get(category_order[0]) else '' }} تومان تا بهره‌برداری؛ حداقل ۷۰۰ میلیون نقد، باقی با چک</li>
-        <li>دهکده و اقامتگاه: ۵۰٪ نقد، باقی مرحله‌ای با پیشرفت پروژه؛ پیش‌ثبت‌نام تا بهار</li>
-        <li>ساخت هر سازه حدود {{ build_days|fa }} روز؛ ۵۰٪ در شروع، ۵۰٪ تا تکمیل</li>
+        <li>قرارداد ۱۰ ساله با امکان تمدید تا ۳۰ سال؛ مالکیت سازه‌ها و برند با MAMALCO</li>
+        <li>دکه‌ی شهری: حداقل ۷۰۰ میلیون تومان نقد، باقی با چک</li>
+        <li>دهکده و اقامتگاه: ۵۰٪ نقد، باقی مرحله‌ای با پیشرفت پروژه</li>
         <li>مشارکت در یک واحد مشخص، با صورت‌حساب ماهانه؛ سود تضمین نمی‌شود</li>
       </ul>
       <a class="button primary" href="/invest">جزئیات سرمایه‌گذاری</a>
     </div>
     <div>
-      <h3>بهره‌بردار و کارکنان</h3>
+      <h3>اجاره به کسب‌وکارها</h3>
       <ul class="facts">
-        <li>اجاره یا بهره‌برداری از یک دکه با برند و سامانه‌ی فروش مامال</li>
-        <li>حقوق {{ salary_min|money }} تا {{ salary_max|money }} تومان؛ افزایش {{ raise_labels|join(' یا ') }}</li>
-        <li>قرارداد حداقل {{ min_months|fa }} ماه، بیمه از روز اول</li>
+        <li>کاربری‌های پیشنهادی هر نقطه در جدول بالا آمده است</li>
+        <li>رعایت مقررات بهداشت، ایمنی و اصناف؛ قرارداد فرعی حق سرقفلی ایجاد نمی‌کند</li>
+        <li>حقوق کارکنان {{ salary_min|money }} تا {{ salary_max|money }} تومان؛ قرارداد حداقل {{ min_months|fa }} ماه</li>
       </ul>
-      <a class="button" href="/apply/rent">درخواست بهره‌برداری</a> <a class="button" href="/jobs">همکاری</a>
+      <a class="button" href="/apply/rent">درخواست اجاره</a> <a class="button" href="/jobs">همکاری</a>
     </div>
     <div>
       <h3>مشتری</h3>
       <ul class="facts">
-        <li>خرید حضوری، نشستن و نوشیدن در محل، یا بیرون‌بر و فلاسک</li>
-        <li>سفارش آنلاین، خرده و عمده (چای، قند، لبنیات، محصولات محلی)</li>
+        <li>خرید حضوری، نشستن در محل یا بیرون‌بر</li>
+        <li>سفارش آنلاین، خرده و عمده</li>
       </ul>
       <a class="button" href="/shop">فروشگاه</a>
     </div>
   </div>
 </section>
 
-<section class="card">
-  <h2>شفافیت</h2>
-  <ul class="facts">
-    <li>کارت‌خوان و حساب به نام شرکت برای هر واحد</li>
-    <li>گزارش روزانه‌ی فروش با عکس فاکتور در سامانه‌ی MAMAL Central</li>
-    <li>صورت‌حساب ماهانه برای هر سرمایه‌گذار و گزارش پیشرفت برای شهرداری</li>
-  </ul>
-</section>
-
 <section class="card center">
   <h2>تماس</h2>
-  <p>MAMALCO GmbH، هامبورگ · مجری پایلوت در اشنویه</p>
+  <p>MAMALCO · mamalco.com · اشنویه، آذربایجان غربی</p>
   <a class="button primary" href="/apply/general">ارسال پیام</a>
 </section>
 

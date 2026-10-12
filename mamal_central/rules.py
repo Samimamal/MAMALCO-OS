@@ -18,12 +18,15 @@ CATEGORY_LABELS = {
     Category.other: "سایر",
 }
 CATEGORY_PREFIX = {Category.form: "F", Category.village: "V", Category.lodge: "L"}
-# Pilot in Oshnavieh: 10 of each to start. The municipality contract (1404,
-# 10 years) covers 30 kiosk sites of ~12 m²: 10 in year one, then 5 a year.
-STRUCTURES_PER_CATEGORY = 10
+# Oshnavieh plan (project dossier 1405/07/20): phase one = 30 kiosk sites of
+# ~12 m² under the 10-year municipality contract (10 in year one, then 5 a
+# year); a 150-kiosk vision for the city; the village = 30 superadobe domes of
+# up to ~36 m²; one lodge on the 13,500 m² Qala Tuk land.
+KIOSKS_VISION = 150
+STRUCTURE_COUNTS = {Category.form: 30, Category.village: 30, Category.lodge: 1}
 CITY_ROLLOUT = [(1, 10), (2, 15), (3, 20), (4, 25), (5, 30)]  # (contract year, cumulative sites)
 EXPANSION_STEPS = [
-    ("اشنویه (پایلوت)", "۱۰ دکه‌ی شهری در سال اول، سپس هر سال ۵ دکه تا ۳۰؛ ۱۰ واحد دهکده؛ ۱۰ اقامتگاه"),
+    ("اشنویه (پایلوت)", "فاز اول ۳۰ دکه (۱۰ در سال اول، سپس هر سال ۵)، دهکده‌ی ۳۰ سازه‌ای، اقامتگاه قلاتوک؛ چشم‌انداز ۱۵۰ دکه"),
     ("شهرهای استان آذربایجان غربی", "کپی همان بسته در شهرهایی که ظرفیت و شهرداری همراه دارند"),
     ("استان‌های دیگر ایران", "هر برند جدا، با سرمایه‌گذار یا بهره‌بردار محلی (فرانچایز)"),
     ("کشورهای همسایه و اروپا", "پس از ثبت برند، دفترچه‌ی عملیات و داده‌ی ۶ تا ۱۲ ماهه"),
