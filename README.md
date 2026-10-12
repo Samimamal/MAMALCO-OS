@@ -97,7 +97,6 @@ python3 -m venv .venv
 .venv/bin/python -m mamal_central.cli import-kml lodge1.kml --code SITE-LODGE-01 --category lodge --declared-area 2000
 # نقاط پیشنهادی شهرداری: CSV با ستون‌های code,x,y (UTM زون ۳۸) یا code,lat,lng
 .venv/bin/python -m mamal_central.cli import-points points.csv
-```
 # ۱۹ محل مصوب شهرداری (صورتجلسه‌ی جانمایی ۱۴۰۵/۰۲/۲۱) با تعداد غرفه و مشاغل مجاز
 .venv/bin/python -m mamal_central.cli import-city-points
 ```
