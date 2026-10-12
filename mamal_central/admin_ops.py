@@ -19,7 +19,9 @@ from .models import (
     OrderStatus,
     Payout,
     Product,
+    LandStatus,
     RaiseRule,
+    Site,
     StructurePhoto,
     StructureStatus,
     StructureTier,
@@ -410,6 +412,55 @@ def register(app: FastAPI, ctx) -> None:
         employee.raise_rule, employee.active, employee.notes = raise_rule, active, notes.strip()
         db.commit()
         return RedirectResponse(f"/w/{slug}/staff", status_code=303)
+
+    # -------------------------------------------------------------------- map
+
+    @app.get("/admin/map", response_class=HTMLResponse)
+    def admin_map(request: Request, user: User = Depends(current_user), db: Session = Depends(get_db)):
+        units = []
+        for ws in db.scalars(select(Workspace).order_by(Workspace.slug)):
+            try:
+                ctx.load_workspace(db, user, ws.slug)
+            except HTTPException:
+                continue
+            units += [u for u in ctx.units_for(user, ws)]
+        points = [
+            {
+                "lat": u.latitude, "lng": u.longitude, "code": u.code or "", "name": u.name,
+                "category": u.category.value, "status": u.status.value,
+                "url": f"/w/{u.workspace.slug}/structures/{u.id}", "public": u.is_listed,
+            }
+            for u in units if u.has_location
+        ]
+        sites = db.scalars(select(Site).order_by(Site.code)).all() if user.is_admin else []
+        site_data = [
+            {
+                "code": s.code, "name": s.name, "category": s.category.value,
+                "polygon": s.polygon, "owner": s.owner, "status": s.land_status.value,
+                "declared": s.declared_area_m2, "computed": s.computed_area_m2,
+            }
+            for s in sites if len(s.polygon) >= 3
+        ]
+        return render(request, "map.html", {
+            "user": user, "points": points, "sites": site_data, "admin_view": True,
+            "missing": sum(1 for u in units if not u.has_location), "total": len(units),
+            "site_rows": sites, "land_statuses": list(LandStatus),
+        })
+
+    @app.post("/admin/sites/{site_id}")
+    def site_update(
+        request: Request, site_id: int,
+        land_status: LandStatus = Form(...), notes: str = Form(""), csrf: str = Form(""),
+        user: User = Depends(current_user), db: Session = Depends(get_db),
+    ):
+        ctx.require_csrf(request, csrf)
+        ctx.require_admin(user)
+        site = db.get(Site, site_id)
+        if not site:
+            raise HTTPException(404)
+        site.land_status, site.notes = land_status, notes.strip()
+        db.commit()
+        return RedirectResponse("/admin/map#sites", status_code=303)
 
     # ---------------------------------------------------------- investor payouts
 

@@ -145,6 +145,18 @@ def register(app: FastAPI, ctx) -> None:
             "progress": unit.build_progress(ctx.today()),
         })
 
+    @app.get("/map", response_class=HTMLResponse)
+    def public_map(request: Request, db: Session = Depends(get_db)):
+        points = [
+            {
+                "lat": u.latitude, "lng": u.longitude, "code": u.code, "name": u.name,
+                "category": u.category.value, "status": u.status.value,
+                "url": f"/s/{u.code.lower()}", "public": True,
+            }
+            for u in listed_units(db)
+        ]
+        return page(request, "map.html", {"points": points, "sites": [], "admin_view": False})
+
     @app.get("/invest", response_class=HTMLResponse)
     def invest(request: Request, db: Session = Depends(get_db)):
         tiers = tiers_by_category(db)

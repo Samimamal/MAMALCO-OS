@@ -93,8 +93,10 @@ class Unit(Base):
     open_for_jobs: Mapped[bool] = mapped_column(Boolean, default=True)
     build_start_date: Mapped[dt.date | None] = mapped_column(Date, nullable=True)
     build_days: Mapped[int] = mapped_column(Integer, default=45)
+    site_id: Mapped[int | None] = mapped_column(ForeignKey("sites.id"), nullable=True)
 
     workspace: Mapped[Workspace] = relationship(back_populates="units")
+    site: Mapped[Site | None] = relationship(back_populates="units")
     reports: Mapped[list[DailyReport]] = relationship(back_populates="unit")
     photos: Mapped[list[StructurePhoto]] = relationship(
         back_populates="unit", order_by="StructurePhoto.sort_order, StructurePhoto.id"
@@ -130,6 +132,57 @@ class Unit(Base):
             return None
         elapsed = (today - self.build_start_date).days
         return max(0, min(100, round(100 * elapsed / self.build_days)))
+
+
+class LandStatus(str, enum.Enum):
+    sketch = "sketch"  # survey sketch (کروکی) only
+    negotiating = "negotiating"  # talking to the owner / authority
+    agreement = "agreement"  # signed lease / transfer agreement
+    permit = "permit"  # building permit issued
+
+
+class Site(Base):
+    """A land parcel: the village land, a lodge plot, or a municipality point area.
+
+    Kept separate from structures: one parcel can carry many structures, and its
+    legal status (who owns it, what is signed) decides what may be built and sold.
+    """
+
+    __tablename__ = "sites"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    code: Mapped[str] = mapped_column(String(32), unique=True)
+    name: Mapped[str] = mapped_column(String(200))
+    category: Mapped[Category] = mapped_column(Enum(Category), default=Category.other)
+    owner: Mapped[str] = mapped_column(String(300), default="")
+    land_status: Mapped[LandStatus] = mapped_column(Enum(LandStatus), default=LandStatus.sketch)
+    declared_area_m2: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # JSON list of [lat, lng]
+    polygon_json: Mapped[str] = mapped_column(Text, default="[]")
+    # Original coordinates as given in the source document, for audit.
+    source_coordinates: Mapped[str] = mapped_column(Text, default="")
+    source_note: Mapped[str] = mapped_column(Text, default="")
+    notes: Mapped[str] = mapped_column(Text, default="")
+
+    units: Mapped[list[Unit]] = relationship(back_populates="site")
+
+    @property
+    def polygon(self) -> list[tuple[float, float]]:
+        import json
+
+        return [tuple(p) for p in json.loads(self.polygon_json or "[]")]
+
+    @property
+    def computed_area_m2(self) -> int:
+        from .geo import latlng_area
+
+        return round(latlng_area(self.polygon))
+
+    @property
+    def area_mismatch_pct(self) -> int | None:
+        if not self.declared_area_m2 or len(self.polygon) < 3:
+            return None
+        return round(100 * (self.computed_area_m2 - self.declared_area_m2) / self.declared_area_m2)
 
 
 class StructurePhoto(Base):

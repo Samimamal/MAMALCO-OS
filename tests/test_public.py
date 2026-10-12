@@ -198,3 +198,61 @@ def test_investment_rules():
     assert investment_rule(Category.form, 1_500_000_000).min_cash == 700_000_000
     assert investment_rule(Category.village, 3_000_000_000).min_cash == 1_500_000_000
     assert investment_rule(Category.lodge, 6_000_000_000).min_cash == 3_000_000_000
+
+
+# ------------------------------------------------------------------- geo / maps
+
+from mamal_central.geo import latlng_area, parse_kml, shoelace_area, utm_to_latlng
+
+
+def test_utm_conversion_matches_reference():
+    # Reference values from PROJ (EPSG:32638 -> EPSG:4326).
+    lat, lng = utm_to_latlng(507555.368, 4100021.290, 38)
+    assert abs(lat - 37.046384) < 1e-6 and abs(lng - 45.084966) < 1e-6
+    lat, lng = utm_to_latlng(507411.830, 4099932.980, 38)
+    assert abs(lat - 37.045589) < 1e-6 and abs(lng - 45.083351) < 1e-6
+
+
+def test_village_polygon_area():
+    from mamal_central.cli import VILLAGE_SITE
+
+    utm = [(x, y) for _, x, y in VILLAGE_SITE["points"]]
+    straight = shoelace_area(utm)
+    # Straight p1-p2 chord: ~17,844 m², larger than the declared 13,500 m² because
+    # the real boundary follows the curved access road.
+    assert 17_800 < straight < 17_900
+    latlng = [utm_to_latlng(x, y) for x, y in utm]
+    assert abs(latlng_area(latlng) - straight) / straight < 0.01
+
+
+def test_parse_kml_polygon():
+    kml = """<?xml version="1.0"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document>
+    <Placemark><name>Lodge 1</name><Polygon><outerBoundaryIs><LinearRing><coordinates>
+    45.10,37.05,0 45.101,37.05,0 45.101,37.051,0 45.10,37.05,0
+    </coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark></Document></kml>"""
+    marks = parse_kml(kml)
+    assert marks[0]["name"] == "Lodge 1" and marks[0]["type"] == "polygon"
+    assert marks[0]["coords"] == [(37.05, 45.10), (37.05, 45.101), (37.051, 45.101)]
+    with pytest.raises(ValueError):
+        parse_kml('<!DOCTYPE x [<!ENTITY a "b">]><kml/>')
+
+
+def test_maps(app):
+    import json
+
+    from mamal_central.models import Site
+
+    db = app.state.session_factory()
+    db.add(Site(code="SITE-1", name="Secret land", category=Category.village,
+                polygon_json=json.dumps([[37.0, 45.0], [37.0, 45.001], [37.001, 45.001]])))
+    db.commit()
+    db.close()
+    public = TestClient(app).get("/map").text
+    assert "F-02" in public and "F-03" not in public and "Secret land" not in public
+    c = TestClient(app)
+    login(c, "sami", "admin-pass-123")
+    admin = c.get("/admin/map").text
+    assert "Secret land" in admin and "F-02" in admin
+    op = TestClient(app)
+    login(op, "op", "op-pass-1234")
+    assert "Secret land" not in op.get("/admin/map").text

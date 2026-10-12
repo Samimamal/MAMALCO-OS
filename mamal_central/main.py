@@ -81,6 +81,10 @@ templates.env.globals["case_status_labels"] = {
     "new": "جدید", "contacted": "تماس گرفته شد", "qualified": "واجد شرایط",
     "rejected": "رد شد", "converted": "قرارداد شد",
 }
+templates.env.globals["land_status_labels"] = {
+    "sketch": "فقط کروکی", "negotiating": "در حال مذاکره",
+    "agreement": "قرارداد واگذاری امضا شده", "permit": "پروانه ساخت صادر شده",
+}
 templates.env.globals["order_status_labels"] = {
     "new": "جدید", "confirmed": "تأیید شد", "delivered": "تحویل شد", "cancelled": "لغو شد",
 }

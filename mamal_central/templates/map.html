@@ -1,0 +1,39 @@
+{% extends "public/_base.html" if not admin_view else "base.html" %}
+{% block title %}نقشه‌ی سازه‌های مامال{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="/static/vendor/leaflet/leaflet.css">
+<h1>نقشه‌ی {{ 'سازه‌ها و زمین‌ها' if admin_view else 'سازه‌های مامال' }}</h1>
+{% if admin_view %}
+<p class="muted">{{ points|length|fa }} سازه روی نقشه · {{ missing|fa }} سازه هنوز GPS ندارد (از {{ total|fa }}) · زمین‌ها فقط برای ادمین نمایش داده می‌شوند.</p>
+{% endif %}
+<div class="legend">
+  <span><i class="dot form"></i>{{ category_labels['form'] }}</span>
+  <span><i class="dot village"></i>{{ category_labels['village'] }}</span>
+  <span><i class="dot lodge"></i>{{ category_labels['lodge'] }}</span>
+  {% if admin_view %}<span><i class="dot hollow"></i>منتشر نشده</span>{% endif %}
+</div>
+<div id="map" class="bigmap" role="application" aria-label="نقشه"></div>
+<script type="application/json" id="map-data">{{ {"points": points, "sites": sites}|tojson }}</script>
+<script src="/static/vendor/leaflet/leaflet.js"></script>
+<script src="/static/map.js"></script>
+
+{% if admin_view and site_rows %}
+<h2 class="section-title" id="sites">زمین‌ها</h2>
+{% for s in site_rows %}
+<section class="card">
+  <div class="unit-head"><h2>{{ s.name }}</h2><span class="code">{{ s.code }}</span></div>
+  <p>{{ category_labels[s.category.value] }} · مالک: {{ s.owner or '—' }}</p>
+  <p>مساحت اعلامی: {{ s.declared_area_m2|money if s.declared_area_m2 else '—' }} m² · محاسبه از نقاط: {{ s.computed_area_m2|money }} m²
+    {% if s.area_mismatch_pct is not none and (s.area_mismatch_pct > 5 or s.area_mismatch_pct < -5) %}<span class="tag warn">اختلاف {{ s.area_mismatch_pct|fa }}٪</span>{% endif %}</p>
+  {% if s.source_note %}<p class="muted">{{ s.source_note }}</p>{% endif %}
+  <p class="muted">{{ s.units|length|fa }} سازه روی این زمین</p>
+  <form method="post" action="/admin/sites/{{ s.id }}" class="inline-form two">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <select name="land_status">{% for st in land_statuses %}<option value="{{ st.value }}" {{ 'selected' if s.land_status == st }}>{{ land_status_labels[st.value] }}</option>{% endfor %}</select>
+    <button type="submit">ذخیره</button>
+    <textarea name="notes" rows="2" placeholder="یادداشت (شماره نامه، تاریخ جلسه، ...)">{{ s.notes }}</textarea>
+  </form>
+</section>
+{% endfor %}
+{% endif %}
+{% endblock %}

@@ -179,3 +179,10 @@ table.budget tr.sum td { font-weight: 700; }
 .pinfo { display: flex; flex-direction: column; gap: .1rem; }
 .qty { width: 90px; flex: 0 0 90px; font-size: .85rem; }
 .gallery img:only-child { flex-basis: 100%; max-width: none; }
+.bigmap { height: 60vh; min-height: 320px; border-radius: 12px; border: 1px solid var(--border); margin: 8px 0 16px; direction: ltr; }
+.legend { display: flex; flex-wrap: wrap; gap: .8rem; font-size: .9rem; color: var(--muted); }
+.dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-left: .3rem; vertical-align: middle; border: 2px solid; }
+.dot.form { background: #1f5f4a; border-color: #1f5f4a; }
+.dot.village { background: #b06a1b; border-color: #b06a1b; }
+.dot.lodge { background: #3d5a99; border-color: #3d5a99; }
+.dot.hollow { background: transparent; border-color: var(--muted); }

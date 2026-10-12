@@ -11,8 +11,14 @@ from sqlalchemy import select
 
 from .config import Settings
 from .db import make_engine, make_session_factory
+import csv
+import json
+
+from .geo import OSHNAVIEH_UTM_ZONE, parse_kml, shoelace_area, utm_to_latlng
 from .models import (
     Category,
+    LandStatus,
+    Site,
     Membership,
     Role,
     StructureStatus,
@@ -198,6 +204,107 @@ def cmd_init_structures(db, args):
     print(f"Created {created} structures ({', '.join(CATEGORY_LABELS[c] for c in STRUCTURE_WORKSPACES)})")
 
 
+# Survey sketch (کروکی) of the village land, multi-frequency GPS, UTM zone 38N.
+# Part of plot 4 subsidiary of 75 main, Qala Tuk; owner: National Land and Housing
+# Organization. Declared area 13,500 m². The p1->p2 side follows the curved access
+# road (32.9 + 28.2 + 44.3 + 47.8 + 26.0 m); its intermediate points are not in
+# the table, so the straight-chord polygon below is larger than the declared area.
+VILLAGE_SITE = {
+    "code": "SITE-VILLAGE-QT",
+    "name": "زمین دهکده مامال — قلاتوک",
+    "category": Category.village,
+    "owner": "سازمان ملی زمین و مسکن (قسمتی از پلاک ۴ فرعی از ۷۵ اصلی قلعه توک)",
+    "declared_area_m2": 13_500,
+    "points": [
+        ("p1", 507555.368, 4100021.290),
+        ("p2", 507664.383, 4099970.002),
+        ("p3", 507630.616, 4099882.568),
+        ("p4", 507603.654, 4099929.311),
+        ("p5", 507546.796, 4099955.429),
+        ("p6", 507513.870, 4099864.475),
+        ("p7", 507411.830, 4099932.980),
+    ],
+    "source_note": (
+        "کروکی نقشه‌برداری با GPS مولتی‌فرکانس، بر اساس درخواست مالک؛ سند مالکیت یا قرارداد واگذاری نیست. "
+        "ضلع p1 تا p2 در امتداد راه دسترسی قوسی است و نقاط میانی آن در جدول نیامده؛ "
+        "برای مرز دقیق، فایل نقاط کامل (DWG/KML) از نقشه‌بردار گرفته شود."
+    ),
+}
+
+
+def cmd_init_village_site(db, _args):
+    if db.scalar(select(Site).where(Site.code == VILLAGE_SITE["code"])):
+        sys.exit("Village site already exists")
+    pts = VILLAGE_SITE["points"]
+    polygon = [utm_to_latlng(x, y, OSHNAVIEH_UTM_ZONE) for _, x, y in pts]
+    site = Site(
+        code=VILLAGE_SITE["code"], name=VILLAGE_SITE["name"], category=VILLAGE_SITE["category"],
+        owner=VILLAGE_SITE["owner"], land_status=LandStatus.sketch,
+        declared_area_m2=VILLAGE_SITE["declared_area_m2"],
+        polygon_json=json.dumps(polygon),
+        source_coordinates="\n".join(f"{n},{x},{y}" for n, x, y in pts) + "\nUTM zone 38N",
+        source_note=VILLAGE_SITE["source_note"],
+    )
+    db.add(site)
+    db.flush()
+    for u in db.scalars(select(Unit).where(Unit.category == Category.village)):
+        if u.site_id is None:
+            u.site_id = site.id
+    db.commit()
+    straight = shoelace_area([(x, y) for _, x, y in pts])
+    print(f"Created {site.code}: declared 13,500 m², straight-chord polygon {straight:,.0f} m²")
+
+
+def cmd_import_kml(db, args):
+    """Google Earth KML -> a Site polygon (lodge / village plot)."""
+    with open(args.file, encoding="utf-8") as fh:
+        marks = parse_kml(fh.read())
+    polygons = [m for m in marks if m["type"] == "polygon"]
+    if not polygons:
+        sys.exit("No polygon in KML")
+    poly = polygons[0]["coords"]
+    site = db.scalar(select(Site).where(Site.code == args.code))
+    if site is None:
+        site = Site(code=args.code, name=args.name or polygons[0]["name"] or args.code)
+        db.add(site)
+    site.category = Category(args.category)
+    if args.name:
+        site.name = args.name
+    if args.declared_area:
+        site.declared_area_m2 = args.declared_area
+    if args.owner:
+        site.owner = args.owner
+    site.polygon_json = json.dumps(poly)
+    site.source_note = f"Imported from {args.file}"
+    db.commit()
+    print(f"{site.code}: {len(poly)} points, ~{site.computed_area_m2:,} m²")
+
+
+def cmd_import_points(db, args):
+    """CSV with code + (x, y UTM) or (lat, lng) -> structure locations."""
+    updated = missing = 0
+    with open(args.file, encoding="utf-8-sig") as fh:
+        for row in csv.DictReader(fh):
+            code = (row.get("code") or "").strip().upper()
+            unit = db.scalar(select(Unit).where(Unit.code == code))
+            if not unit:
+                missing += 1
+                print(f"  skip: no structure {code!r}")
+                continue
+            if row.get("x") and row.get("y"):
+                lat, lng = utm_to_latlng(float(row["x"]), float(row["y"]), args.zone)
+            else:
+                lat, lng = float(row["lat"]), float(row["lng"])
+            if not (24 < lat < 40 and 44 < lng < 64):
+                sys.exit(f"{code}: {lat},{lng} is outside Iran — check the columns/zone")
+            unit.latitude, unit.longitude = lat, lng
+            if row.get("address"):
+                unit.address = row["address"].strip()
+            updated += 1
+    db.commit()
+    print(f"Updated {updated} structures, {missing} skipped")
+
+
 def cmd_init_catalog(db, _args):
     if db.scalar(select(StructureTier)):
         sys.exit("Catalog already exists; edit prices on the /catalog page")
@@ -255,6 +362,22 @@ def main(argv=None):
 
     sub.add_parser("init-mamal").set_defaults(func=cmd_init_mamal)
     sub.add_parser("init-catalog").set_defaults(func=cmd_init_catalog)
+
+    sub.add_parser("init-village-site").set_defaults(func=cmd_init_village_site)
+
+    p = sub.add_parser("import-kml", help="Google Earth polygon -> land site")
+    p.add_argument("file")
+    p.add_argument("--code", required=True, help="e.g. SITE-LODGE-01")
+    p.add_argument("--name")
+    p.add_argument("--category", choices=[c.value for c in Category], default="lodge")
+    p.add_argument("--declared-area", type=int)
+    p.add_argument("--owner")
+    p.set_defaults(func=cmd_import_kml)
+
+    p = sub.add_parser("import-points", help="CSV code,x,y (UTM) or code,lat,lng -> structures")
+    p.add_argument("file")
+    p.add_argument("--zone", type=int, default=OSHNAVIEH_UTM_ZONE)
+    p.set_defaults(func=cmd_import_points)
 
     p = sub.add_parser("init-structures")
     p.add_argument("--count", type=int, default=STRUCTURES_PER_CATEGORY)
