@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}{{ workspace.name }} — MAMAL Central{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ workspace.name }}</h1>
+  <a class="button primary" href="/w/{{ workspace.slug }}/report">ثبت گزارش روزانه</a>
+</div>
+<p class="muted">{{ days|fa }} روز اخیر · مبالغ به تومان</p>
+
+{% if not summaries %}
+<p class="muted">این فضای کاری هنوز واحد فعالی ندارد.</p>
+{% endif %}
+
+{% for s in summaries %}
+<section class="card unit">
+  <div class="unit-head">
+    <h2>{{ s.unit.name }}</h2>
+    {% if s.unit.daily_target %}<span class="muted">هدف روزانه: {{ s.unit.daily_target|money }}</span>{% endif %}
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <span class="label">میانگین فروش روزانه</span>
+      <span class="value">{{ s.avg_daily_sales|money }}</span>
+      {% if s.target_pct is not none %}
+      <span class="sub {{ 'good' if s.target_pct >= 100 else 'bad' }}">{{ s.target_pct|fa }}٪ هدف</span>
+      {% endif %}
+    </div>
+    <div class="stat">
+      <span class="label">مشتری / میانگین فاکتور</span>
+      <span class="value">{{ s.total_customers|money }}</span>
+      <span class="sub">{{ s.avg_ticket|money }} هر مشتری</span>
+    </div>
+    <div class="stat">
+      <span class="label">روزهای گزارش‌شده</span>
+      <span class="value">{{ s.days_reported|fa }} از {{ days|fa }}</span>
+      <span class="sub">{{ s.days_on_target|fa }} روز روی هدف</span>
+    </div>
+    <div class="stat">
+      <span class="label">ضایعات</span>
+      <span class="value">{{ s.total_waste|money }}</span>
+    </div>
+  </div>
+
+  {% if s.total_off_pos or s.missing_photo_days or s.days_reported < days %}
+  <ul class="warnings">
+    {% if s.days_reported < days %}<li>{{ (days - s.days_reported)|fa }} روز بدون گزارش</li>{% endif %}
+    {% if s.missing_photo_days %}<li>{{ s.missing_photo_days|fa }} گزارش بدون عکس فاکتور</li>{% endif %}
+    {% if s.total_off_pos %}<li>{{ s.total_off_pos|money }} تومان فروش کارتی خارج از POS مامال</li>{% endif %}
+  </ul>
+  {% endif %}
+
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>تاریخ</th><th>فروش</th><th>مشتری</th><th class="opt">ضایعات</th><th>وضعیت</th></tr>
+    </thead>
+    <tbody>
+    {% for d in s.days %}
+      <tr class="{{ 'empty' if not d.report }}">
+        <td><a href="/w/{{ workspace.slug }}/report?unit_id={{ s.unit.id }}&date={{ d.date.isoformat() }}">{{ d.date|jdate }}</a></td>
+        {% if d.report %}
+        <td class="num {{ 'good' if s.unit.daily_target and d.report.sales_total >= s.unit.daily_target }}">{{ d.report.sales_total|money }}</td>
+        <td class="num">{{ d.report.customer_count|fa }}</td>
+        <td class="num opt">{{ d.report.waste|money }}</td>
+        {% else %}
+        <td colspan="2" class="muted">—</td><td class="opt"></td>
+        {% endif %}
+        <td>
+          {% for f in d.flags %}
+            {% if f == 'missing' %}<span class="tag bad">ثبت نشده</span>
+            {% elif f == 'no_photo' %}<span class="tag warn">بدون عکس</span>
+            {% elif f == 'off_pos' %}<span class="tag warn">POS دیگر</span>{% endif %}
+          {% else %}<span class="tag good">کامل</span>{% endfor %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}گزارش روزانه — {{ unit.name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>گزارش روزانه</h1>
+  {% if role != 'staff' %}<a href="/w/{{ workspace.slug }}">داشبورد ←</a>{% endif %}
+</div>
+
+<form method="get" class="pickers">
+  <label>واحد
+    <select name="unit_id" onchange="this.form.submit()">
+      {% for u in units %}<option value="{{ u.id }}" {{ 'selected' if u.id == unit.id }}>{{ u.name }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>تاریخ
+    <input type="date" name="date" value="{{ report_date.isoformat() }}" onchange="this.form.submit()">
+  </label>
+</form>
+<p class="muted">{{ report_date|jdate_long }}</p>
+
+{% if saved %}<p class="alert success">گزارش ذخیره شد.</p>{% endif %}
+{% if report %}<p class="muted">این روز قبلاً ثبت شده؛ با ذخیره، اعداد به‌روز می‌شوند.</p>{% endif %}
+
+{% if editable %}
+<form method="post" action="/w/{{ workspace.slug }}/report" enctype="multipart/form-data" class="card stack" id="report">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="unit_id" value="{{ unit.id }}">
+  <input type="hidden" name="report_date" value="{{ report_date.isoformat() }}">
+
+  <fieldset>
+    <legend>فروش (تومان)</legend>
+    <label>نقدی
+      <input name="cash_sales" type="number" min="0" inputmode="numeric" value="{{ report.cash_sales if report else '' }}" class="sale">
+    </label>
+    <label>کارت — POS مامال
+      <input name="card_sales_own_pos" type="number" min="0" inputmode="numeric" value="{{ report.card_sales_own_pos if report else '' }}" class="sale">
+    </label>
+    <label>کارت — POS همسایه یا حساب شخصی
+      <input name="card_sales_other" type="number" min="0" inputmode="numeric" value="{{ report.card_sales_other if report else '' }}" class="sale">
+    </label>
+    <p class="total">جمع فروش: <strong id="total">۰</strong> تومان</p>
+  </fieldset>
+
+  <fieldset>
+    <legend>عملیات</legend>
+    <label>تعداد مشتری
+      <input name="customer_count" type="number" min="0" inputmode="numeric" value="{{ report.customer_count if report else '' }}">
+    </label>
+    <label>خرید جنس امروز (تومان)
+      <input name="purchases" type="number" min="0" inputmode="numeric" value="{{ report.purchases if report else '' }}">
+    </label>
+    <label>ضایعات (تومان)
+      <input name="waste" type="number" min="0" inputmode="numeric" value="{{ report.waste if report else '' }}">
+    </label>
+    <label>توضیحات
+      <textarea name="notes" rows="3">{{ report.notes if report else '' }}</textarea>
+    </label>
+  </fieldset>
+
+  <fieldset>
+    <legend>عکس فاکتورها و رسید POS</legend>
+    <input type="file" name="photos" accept="image/*,.heic,application/pdf" multiple>
+  </fieldset>
+
+  <button type="submit" class="primary">ذخیره گزارش</button>
+</form>
+{% else %}
+<p class="alert error">ثبت یا ویرایش گزارش برای این تاریخ مجاز نیست.</p>
+{% endif %}
+
+{% if report and report.attachments %}
+<section class="card">
+  <h2>پیوست‌ها</h2>
+  <ul class="attachments">
+    {% for a in report.attachments %}
+    <li><a href="/attachments/{{ a.id }}" target="_blank" rel="noopener">{{ a.original_name }}</a></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<script>
+(function () {
+  var inputs = document.querySelectorAll('.sale');
+  var out = document.getElementById('total');
+  if (!out) return;
+  var fa = new Intl.NumberFormat('fa-IR');
+  function update() {
+    var sum = 0;
+    inputs.forEach(function (i) { sum += parseInt(i.value, 10) || 0; });
+    out.textContent = fa.format(sum);
+  }
+  inputs.forEach(function (i) { i.addEventListener('input', update); });
+  update();
+})();
+</script>
+{% endblock %}

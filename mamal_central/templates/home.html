@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>فضاهای کاری</h1>
+{% if workspaces %}
+<ul class="tiles">
+  {% for w in workspaces %}
+  <li><a class="card tile" href="/w/{{ w.slug }}">{{ w.name }}<small>{{ w.units|length|fa }} واحد</small></a></li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="muted">هنوز به هیچ فضای کاری دسترسی ندارید.</p>
+{% endif %}
+{% endblock %}
