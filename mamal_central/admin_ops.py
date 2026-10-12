@@ -19,6 +19,7 @@ from .models import (
     OrderStatus,
     Payout,
     Product,
+    CityPoint,
     LandStatus,
     RaiseRule,
     Site,
@@ -441,8 +442,18 @@ def register(app: FastAPI, ctx) -> None:
             }
             for s in sites if len(s.polygon) >= 3
         ]
+        from .geo import point_issues
+
+        city_rows = db.scalars(select(CityPoint).order_by(CityPoint.number)).all()
+        city = [
+            {"lat": p.latitude, "lng": p.longitude, "number": p.number, "name": p.name,
+             "booths": p.booths, "trades": p.trades}
+            for p in city_rows
+        ]
         return render(request, "map.html", {
             "user": user, "points": points, "sites": site_data, "admin_view": True,
+            "city": city, "city_issues": point_issues(city_rows),
+            "booth_total": sum(p.booths for p in city_rows),
             "missing": sum(1 for u in units if not u.has_location), "total": len(units),
             "site_rows": sites, "land_statuses": list(LandStatus),
         })

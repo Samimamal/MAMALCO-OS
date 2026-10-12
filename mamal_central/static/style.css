@@ -14,7 +14,7 @@
   --bad-bg: #fbe4e1;
 }
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #141716;
     --surface: #1d2120;
     --text: #e8ebe9;
@@ -28,7 +28,24 @@
     --warn-bg: #33290f;
     --bad: #f08a80;
     --bad-bg: #3a1b18;
+      color-scheme: dark;
   }
+}
+:root[data-theme="dark"] {
+    --bg: #141716;
+    --surface: #1d2120;
+    --text: #e8ebe9;
+    --muted: #9aa19d;
+    --border: #2e3432;
+    --accent: #3fa37f;
+    --accent-text: #0d1110;
+    --good: #6fd39f;
+    --good-bg: #183026;
+    --warn: #f0c060;
+    --warn-bg: #33290f;
+    --bad: #f08a80;
+    --bad-bg: #3a1b18;
+    color-scheme: dark;
 }
 * { box-sizing: border-box; }
 body {
@@ -186,3 +203,33 @@ table.budget tr.sum td { font-weight: 700; }
 .dot.village { background: #b06a1b; border-color: #b06a1b; }
 .dot.lodge { background: #3d5a99; border-color: #3d5a99; }
 .dot.hollow { background: transparent; border-color: var(--muted); }
+
+/* ------------------------------------------------------------ pilot page */
+.pilot h2 { margin-bottom: .5rem; }
+.pilot h3 { margin: .25rem 0; font-size: 1rem; }
+figure.wide { margin: 0 0 16px; }
+figure.wide img { width: 100%; border-radius: 12px; display: block; }
+figure.wide.flat img { border: 1px solid var(--border); }
+figure.wide figcaption { color: var(--muted); font-size: .85rem; margin-top: .4rem; }
+.facts-table td { white-space: normal; vertical-align: top; }
+.timeline { padding-right: 1.2rem; margin: .5rem 0; }
+.timeline li { margin-bottom: .35rem; }
+.steps { list-style: none; padding: 0; counter-reset: s; margin: 0 0 .75rem; }
+.steps li { counter-increment: s; display: flex; flex-direction: column; padding: .5rem .9rem .5rem 0; border-right: 3px solid var(--accent); margin-bottom: .5rem; }
+.steps li strong::before { content: counter(s, persian) ". "; }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+@media print {
+  .topbar, .footer, .button { display: none !important; }
+  body { background: #fff; }
+  .card { break-inside: avoid; border-color: #ccc; }
+}
+.preview-banner { background: var(--warn-bg); color: var(--warn); text-align: center; padding: .5rem 16px; font-size: .9rem; border-bottom: 1px solid var(--border); }
+.map-placeholder { display: grid; place-items: center; background: var(--bg); color: var(--muted); text-align: center; padding: 1rem; }
+.dot.approved { background: #7a5af5; border-color: #7a5af5; opacity: .6; }
+.schematic-wrap { overflow-x: auto; margin: 8px 0 12px; }
+.schematic { width: 100%; min-width: 320px; height: auto; display: block; direction: ltr; }
+.sc-frame { fill: var(--bg); stroke: var(--border); }
+.sc-dot { fill: var(--accent); fill-opacity: .18; stroke: var(--accent); stroke-width: 1.5; }
+.sc-num { fill: var(--text); font-size: 12px; font-weight: 600; }
+.sc-bar { stroke: var(--muted); stroke-width: 2; }
+.sc-label { fill: var(--muted); font-size: 11px; }

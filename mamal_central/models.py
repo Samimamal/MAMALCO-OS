@@ -185,6 +185,26 @@ class Site(Base):
         return round(100 * (self.computed_area_m2 - self.declared_area_m2) / self.declared_area_m2)
 
 
+class CityPoint(Base):
+    """A kiosk location approved by the municipality (site-approval minutes),
+    with how many booths it may hold and which trades are allowed there."""
+
+    __tablename__ = "city_points"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    number: Mapped[int] = mapped_column(Integer, unique=True)
+    name: Mapped[str] = mapped_column(String(200))
+    latitude: Mapped[float] = mapped_column(Float)
+    longitude: Mapped[float] = mapped_column(Float)
+    booths: Mapped[int] = mapped_column(Integer, default=1)
+    trades: Mapped[str] = mapped_column(Text, default="")
+    source: Mapped[str] = mapped_column(String(300), default="")
+
+    @property
+    def trade_list(self) -> list[str]:
+        return [t.strip() for t in self.trades.split("؛") if t.strip()]
+
+
 class StructurePhoto(Base):
     __tablename__ = "structure_photos"
 

@@ -256,3 +256,24 @@ def test_maps(app):
     op = TestClient(app)
     login(op, "op", "op-pass-1234")
     assert "Secret land" not in op.get("/admin/map").text
+
+
+def test_city_points_import_and_issues(tmp_path):
+    from mamal_central import cli
+    from mamal_central.db import make_engine, make_session_factory
+    from mamal_central.geo import point_issues
+    from mamal_central.models import CityPoint
+
+    db = make_session_factory(make_engine(f"sqlite:///{tmp_path / 'p.db'}"))()
+    cli.cmd_import_city_points(db, type("A", (), {"file": None, "source": None})())
+    points = db.query(CityPoint).order_by(CityPoint.number).all()
+    assert len(points) == 19 and sum(p.booths for p in points) == 58
+    issues = point_issues(points)
+    # Terminal/Majidabad, CNG exit/coastal road, Urmia/Piranshahr exits share coordinates.
+    assert len(issues) == 3 and any("ترمینال" in i and "مجیدآباد" in i for i in issues)
+    db.close()
+
+
+def test_pilot_page(app):
+    page = TestClient(app).get("/pilot").text
+    assert "۱۴۰۴/۱۱/۱۸" in page and "سال ۵" in page

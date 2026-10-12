@@ -15,6 +15,11 @@
       '<br>مساحت اعلامی: ' + esc(s.declared || '—') + ' m² · نقاط: ' + esc(s.computed) + ' m²');
     s.polygon.forEach(function (p) { bounds.push(p); });
   });
+  (data.city || []).forEach(function (p) {
+    L.circleMarker([p.lat, p.lng], { radius: 6, color: '#7a5af5', weight: 2, fillColor: '#7a5af5', fillOpacity: 0.35 })
+      .addTo(map).bindPopup('<strong>' + esc(p.number) + '. ' + esc(p.name) + '</strong><br>' + esc(p.booths) + ' غرفه<br>' + esc(p.trades));
+    bounds.push([p.lat, p.lng]);
+  });
   data.points.forEach(function (p) {
     var c = colors[p.category] || '#666';
     L.circleMarker([p.lat, p.lng], {

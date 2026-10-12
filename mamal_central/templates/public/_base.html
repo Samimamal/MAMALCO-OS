@@ -8,9 +8,11 @@
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body class="public">
+  {% if preview_banner %}<div class="preview-banner">{{ preview_banner }}</div>{% endif %}
   <header class="topbar">
     <a class="brand" href="/">MAMAL</a>
     <nav class="pubnav">
+      <a href="/pilot">طرح مامال</a>
       <a href="/structures">سازه‌ها</a>
       <a href="/map">نقشه</a>
       <a href="/shop">فروشگاه</a>

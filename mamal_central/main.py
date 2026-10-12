@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime as dt
 import mimetypes
+import os
 import uuid
 from pathlib import Path
 from types import SimpleNamespace
@@ -88,6 +89,8 @@ templates.env.globals["land_status_labels"] = {
 templates.env.globals["order_status_labels"] = {
     "new": "جدید", "confirmed": "تأیید شد", "delivered": "تحویل شد", "cancelled": "لغو شد",
 }
+# Shown on every public page when set (static previews with sample data).
+templates.env.globals["preview_banner"] = os.environ.get("MAMAL_PREVIEW_BANNER", "")
 IMAGE_UPLOADS = {k: v for k, v in ALLOWED_UPLOADS.items() if v.startswith("image/")}
 
 

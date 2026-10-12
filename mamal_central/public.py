@@ -16,6 +16,7 @@ from .models import (
     Application,
     CaseKind,
     Category,
+    CityPoint,
     Order,
     OrderItem,
     StructurePhoto,
@@ -26,6 +27,8 @@ from .models import (
 from .rules import (
     BUDGET_ITEMS,
     BUILD_DAYS,
+    CITY_ROLLOUT,
+    EXPANSION_STEPS,
     MIN_CONTRACT_MONTHS,
     RAISE_LABELS,
     SALARY_MAX,
@@ -70,6 +73,31 @@ def _to_int(value) -> int | None:
     if not text.isdigit():
         raise ValueError(value)
     return int(text)
+
+
+def schematic(points: list[CityPoint], width: int = 720, pad: int = 48) -> dict:
+    """Place points on an equal-scale lat/lng drawing (no base map needed)."""
+    if not points:
+        return {"points": [], "width": width, "height": 0}
+    import math
+
+    lat0 = sum(p.latitude for p in points) / len(points)
+    kx = math.cos(math.radians(lat0))
+    xs = [p.longitude * kx for p in points]
+    ys = [p.latitude for p in points]
+    span = max(max(xs) - min(xs), max(ys) - min(ys)) or 1e-6
+    scale = (width - 2 * pad - 96) / span  # room on the right for nudged labels
+    height = int((max(ys) - min(ys)) * scale + 2 * pad)
+    placed = []
+    for p, x, y in zip(points, xs, ys):
+        px, py = pad + (x - min(xs)) * scale, pad + (max(ys) - y) * scale
+        # Nudge sideways until clear of points already drawn (duplicates and near neighbours).
+        while any(abs(px - q["x"]) < 24 and abs(py - q["y"]) < 24 for q in placed):
+            px += 24
+        placed.append({"p": p, "x": round(px, 1), "y": round(py, 1)})
+    meters = 111_320 * span
+    return {"points": placed, "width": width, "height": height,
+            "bar_px": round(500 / meters * (width - 2 * pad), 1)}
 
 
 def register(app: FastAPI, ctx) -> None:
@@ -145,6 +173,21 @@ def register(app: FastAPI, ctx) -> None:
             "progress": unit.build_progress(ctx.today()),
         })
 
+    @app.get("/pilot", response_class=HTMLResponse)
+    def pilot(request: Request, db: Session = Depends(get_db)):
+        tiers = tiers_by_category(db)
+        points = db.scalars(select(CityPoint).order_by(CityPoint.number)).all()
+        return page(request, "public/pilot.html", {
+            "city_points": points, "schematic": schematic(list(points)),
+            "booth_total": sum(p.booths for p in points),
+            "tiers": tiers, "rollout": CITY_ROLLOUT, "expansion": EXPANSION_STEPS,
+            "rules": {c: investment_rule(c, tiers[c].min_price if c in tiers else None)
+                      for c in PUBLIC_CATEGORIES},
+            "salary_min": SALARY_MIN, "salary_max": SALARY_MAX, "min_months": MIN_CONTRACT_MONTHS,
+            "raise_labels": list(RAISE_LABELS.values()), "build_days": BUILD_DAYS,
+            "budget_items": BUDGET_ITEMS,
+        })
+
     @app.get("/map", response_class=HTMLResponse)
     def public_map(request: Request, db: Session = Depends(get_db)):
         points = [
@@ -155,7 +198,13 @@ def register(app: FastAPI, ctx) -> None:
             }
             for u in listed_units(db)
         ]
-        return page(request, "map.html", {"points": points, "sites": [], "admin_view": False})
+        city = [
+            {"lat": p.latitude, "lng": p.longitude, "number": p.number, "name": p.name,
+             "booths": p.booths, "trades": p.trades}
+            for p in db.scalars(select(CityPoint).order_by(CityPoint.number))
+        ]
+        return page(request, "map.html", {"points": points, "sites": [], "city": city,
+                                          "admin_view": False})
 
     @app.get("/invest", response_class=HTMLResponse)
     def invest(request: Request, db: Session = Depends(get_db)):

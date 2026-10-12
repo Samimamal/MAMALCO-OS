@@ -10,12 +10,21 @@
   <span><i class="dot form"></i>{{ category_labels['form'] }}</span>
   <span><i class="dot village"></i>{{ category_labels['village'] }}</span>
   <span><i class="dot lodge"></i>{{ category_labels['lodge'] }}</span>
+  <span><i class="dot approved"></i>محل مصوب شهرداری</span>
   {% if admin_view %}<span><i class="dot hollow"></i>منتشر نشده</span>{% endif %}
 </div>
 <div id="map" class="bigmap" role="application" aria-label="نقشه"></div>
-<script type="application/json" id="map-data">{{ {"points": points, "sites": sites}|tojson }}</script>
+<script type="application/json" id="map-data">{{ {"points": points, "sites": sites, "city": city or []}|tojson }}</script>
 <script src="/static/vendor/leaflet/leaflet.js"></script>
 <script src="/static/map.js"></script>
+
+{% if admin_view and city_issues %}
+<section class="card" id="points">
+  <h2>نقاط مصوب: {{ city|length|fa }} محل، {{ booth_total|fa }} غرفه</h2>
+  <p class="alert error">ایرادهای جدول جانمایی برای پیگیری با شهرداری:</p>
+  <ul class="facts">{% for i in city_issues %}<li>{{ i }}</li>{% endfor %}</ul>
+</section>
+{% endif %}
 
 {% if admin_view and site_rows %}
 <h2 class="section-title" id="sites">زمین‌ها</h2>

@@ -13,10 +13,12 @@ from .config import Settings
 from .db import make_engine, make_session_factory
 import csv
 import json
+from pathlib import Path
 
 from .geo import OSHNAVIEH_UTM_ZONE, parse_kml, shoelace_area, utm_to_latlng
 from .models import (
     Category,
+    CityPoint,
     LandStatus,
     Site,
     Membership,
@@ -255,6 +257,32 @@ def cmd_init_village_site(db, _args):
     print(f"Created {site.code}: declared 13,500 m², straight-chord polygon {straight:,.0f} m²")
 
 
+POINTS_FILE = Path(__file__).parent / "seed" / "oshnavieh_points_1405.csv"
+POINTS_SOURCE = "صورتجلسه‌ی تأییدیه‌ی جانمایی دکه‌های دهکده مامال، ۱۴۰۵/۰۲/۲۱ (شماره ۱۷۱۴)"
+
+
+def cmd_import_city_points(db, args):
+    """Approved kiosk locations (number,name,lat,lng,booths,trades) -> map."""
+    path = Path(args.file) if args.file else POINTS_FILE
+    count = 0
+    with open(path, encoding="utf-8-sig") as fh:
+        for row in csv.DictReader(fh):
+            number = int(row["number"])
+            point = db.scalar(select(CityPoint).where(CityPoint.number == number)) or CityPoint(number=number)
+            point.name = row["name"].strip()
+            point.latitude, point.longitude = float(row["lat"]), float(row["lng"])
+            if not (36.9 < point.latitude < 37.2 and 44.9 < point.longitude < 45.3):
+                sys.exit(f"Point {number} is outside Oshnavieh: {point.latitude},{point.longitude}")
+            point.booths = int(row["booths"])
+            point.trades = row.get("trades", "").strip()
+            point.source = args.source or POINTS_SOURCE
+            db.add(point)
+            count += 1
+    db.commit()
+    total = sum(p.booths for p in db.scalars(select(CityPoint)))
+    print(f"Imported {count} points, {total} booths in total")
+
+
 def cmd_import_kml(db, args):
     """Google Earth KML -> a Site polygon (lodge / village plot)."""
     with open(args.file, encoding="utf-8") as fh:
@@ -364,6 +392,11 @@ def main(argv=None):
     sub.add_parser("init-catalog").set_defaults(func=cmd_init_catalog)
 
     sub.add_parser("init-village-site").set_defaults(func=cmd_init_village_site)
+
+    p = sub.add_parser("import-city-points", help="approved kiosk locations CSV -> map")
+    p.add_argument("file", nargs="?", help="defaults to the 1405 site-approval table")
+    p.add_argument("--source")
+    p.set_defaults(func=cmd_import_city_points)
 
     p = sub.add_parser("import-kml", help="Google Earth polygon -> land site")
     p.add_argument("file")

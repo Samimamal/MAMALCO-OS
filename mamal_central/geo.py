@@ -93,3 +93,14 @@ def parse_kml(text: str) -> list[dict]:
             out.append({"name": name, "type": kind, "coords": coords})
             break
     return out
+
+
+def point_issues(points) -> list[str]:
+    """Data problems worth raising with the municipality: duplicate coordinates."""
+    seen: dict[tuple[float, float], list] = {}
+    for p in points:
+        seen.setdefault((round(p.latitude, 5), round(p.longitude, 5)), []).append(p)
+    return [
+        " و ".join(f"{p.number}. {p.name}" for p in group) + " مختصات یکسان دارند"
+        for group in seen.values() if len(group) > 1
+    ]
